@@ -20,10 +20,19 @@ cells — one 384-well plate, 18 perturbations × 4 timepoints, ~734,000 cells p
 
 ## Getting started
 
+Is your choice if to clone the git repository and have it locally as a guide or if to copy and paste directly from the website.
+
 ```bash
 git clone https://github.com/Maaraujo-nv/Multicellular-Systems-2026.git
 cd Multicellular-Systems-2026
 ```
+
+
+```{note}
+What is written above is not mandatory clone, if you wanna proceed with cloning you will have to also take that into account during installation. 
+And you will have to read through the git repo and website, as many questions are solved there.
+```
+
 
 Then follow **Setup** on the website, in order:
 
@@ -69,12 +78,44 @@ python tools/execute_notebooks.py book/part3_analysis    # run against real data
 pytest tests/                                   # 19 checks on layout + decoding
 ```
 
-Build the website locally:
+### Building the website locally
+
+Optional — GitHub Actions builds and publishes the site on every push to `main`. Do this
+only when you want to preview a change before pushing it.
+
+Use a **separate** environment from the course one: students never build the book, and
+this way a documentation dependency can never disturb the analysis environment.
 
 ```bash
+micromamba create -n mcs2026-book python=3.11 -y
+micromamba activate mcs2026-book
 pip install -r environment/requirements-book.txt
-jupyter-book build book/
 ```
+
+Python 3.11 matches the version the GitHub runner uses, so a build that works here works
+in CI. If you use `venv` instead of micromamba, `python -m venv ~/venvs/mcs2026-book`
+does the same job — but do not install into the system Python.
+
+```bash
+jupyter-book build book/
+python -m http.server 8000 --directory book/_build/html
+```
+
+Then open <http://localhost:8000>. Serve it rather than opening the HTML directly, or
+search and some links will not work.
+
+To rebuild from scratch, with broken cross-references treated as errors (what CI does):
+
+```bash
+rm -rf book/_build && jupyter-book build book/ --warningiserror
+```
+
+### Publishing
+
+The site is built and deployed by `.github/workflows/book.yml` on every push to `main`.
+For this to work, the repository's **Settings → Pages → Source** must be set to
+**GitHub Actions** — not "Deploy from a branch", which makes GitHub render `README.md`
+with Jekyll and ignore the book entirely.
 
 ## Authors
 

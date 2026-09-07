@@ -16,7 +16,7 @@ by Silvia Barbiero, with lecture material from Simon Suppinger.
 | | |
 |---|---|
 | [`ngio`](https://github.com/BioVisionCenter/ngio) | BioVisionCenter, University of Zurich |
-| [`ez-zarr`](https://github.com/fmicompbio/ez_zarr) | Computational Biology Platform, FMI |
+| [`ez-zarr`](https://github.com/fmicompbio/ez_zarr) | Silvia Barbiero & Computational Biology Platform, FMI |
 | [Fractal](https://fractal-analytics-platform.github.io/) | BioVisionCenter and FMI — used to build the OME-Zarr |
 | [napari](https://napari.org) | the napari community |
 | [scanpy / AnnData](https://scanpy.readthedocs.io) | Theis Lab and contributors |

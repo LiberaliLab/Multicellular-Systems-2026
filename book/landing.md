@@ -1,11 +1,11 @@
 # Home
 
-## Multicellular Systems 2026 — Hands-On Image Analysis
+## Multicellular Systems Autumn 2026 — Hands-On Image Analysis
 
 This website hosts the material for the hands-on image-analysis sessions of
 **Multicellular Systems**, taught at ETH Zürich (D-BSSE) by the Liberali Lab.
 
-**Edition: 2026**
+**Edition: Autumn 2026**
 
 The course has three parts:
 
@@ -28,7 +28,7 @@ Runs on **your laptop**
 
 :::{grid-item-card} Part 3 — Analysis
 734,000 cells, 18 perturbations, 4 timepoints. Signaling, cell mechanics,
-metabolism and organelles, one theme at a time.
+metabolism and organelles, one topic per group. What will be presented at the end of the course!
 +++
 Runs on **Euler**
 :::
@@ -40,10 +40,31 @@ Part 3 works on a **4i multiplexed immunofluorescence screen** of HNES1 human na
 embryonic stem cells: one 384-well plate, **18 perturbations × 4 timepoints**, imaged
 over 18 staining rounds and quantified into **733,556 cells × 4,464 features**.
 
+Part 3 involves 3 sections:
+::::{grid} 1 1 3 3
+:gutter: 3
+
+:::{grid-item-card} Part 1 — Data Clean up and Normalization
 You will not be handed a tidy table. The feature columns are named by *channel and
-imaging round*, and the antibody that was actually in each channel lives in a separate
-Excel sheet. Making those two things meet is the first thing you do in Part 3, and it is
-the part of real image analysis that no tutorial usually shows you.
+imaging round*, and have to be matched to antibody solution.
+Normalization to controls also have to be applied correctly.
++++
+Dont worry the notebooks help you go through all of this
+:::
+
+:::{grid-item-card} Part 2 — Group Analysis Basics
+Here we will divide into topics by groups and we will go through the notebooks for each topic. This will teach you the basics that we expect from the group analysis and will hopefully set you in the correct direction.
++++
+Part 3 Notebooks - from 03 signaling to 06 organelles
+:::
+
+:::{grid-item-card} Part 3 — Group Analysis and Further examples
+Here you have your own time, with our supervision to explore the data and find new effects.
++++
+Dont hesitate to ask and look through Part 3 notebooks 07_ and 08_
+:::
+::::
+
 
 ## Before the first session
 
