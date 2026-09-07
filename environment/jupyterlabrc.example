@@ -1,0 +1,13 @@
+# Copy this file to:  ~/.config/euler/jupyterhub/jupyterlabrc
+#
+#   mkdir -p ~/.config/euler/jupyterhub
+#   cp environment/jupyterlabrc.example ~/.config/euler/jupyterhub/jupyterlabrc
+#
+# JupyterHub sources this at server start. The module line below MUST be
+# byte-identical to the one you used to create the venv -- a kernel built
+# against Python 3.11.6 will not run under a 3.12.x session.
+#
+# If the server fails to start, the reason is in ~/jupyterhub-logs/.
+
+module purge
+module load stack/2024-05 gcc/13.2.0 python/3.11.6_cuda eth_proxy

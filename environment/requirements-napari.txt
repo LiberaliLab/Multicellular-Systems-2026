@@ -1,0 +1,17 @@
+# Part 2 only -- INSTALL THIS ON YOUR OWN LAPTOP, NOT ON EULER.
+#
+# Napari needs OpenGL 3.2+. X11 forwarding from a cluster caps OpenGL at 1.4,
+# so napari cannot be used over an Euler session. Parts 1 and 3 stay on Euler.
+#
+#   python -m venv ~/venvs/mcs2026-napari
+#   source ~/venvs/mcs2026-napari/bin/activate      # Windows: ...\Scripts\activate
+#   pip install -r environment/requirements-napari.txt
+#   napari
+
+napari[all]>=0.5
+napari-ome-zarr>=0.7          # the OME-Zarr reader plugin; no ngio dependency
+
+# OPTIONAL, and it does NOT belong in this environment:
+# napari-ome-zarr-navigator pins ngio<0.6, which conflicts with the ngio==1.1.0
+# used everywhere else in this course. If you want it, make a THIRD environment
+# for it alone. It is not required for any part of Part 2.

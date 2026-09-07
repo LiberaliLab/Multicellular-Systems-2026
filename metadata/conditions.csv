@@ -1,0 +1,19 @@
+condition_code,compound,is_control
+Cnd1,Cycloheximide,False
+Cnd2,IGF,False
+Cnd3,MK-2206,False
+Cnd4,Wortmannin,False
+Cnd5,Sapanisertib/INK128,False
+Cnd6,PF-4708671,False
+Cnd7,LipidMix,False
+Cnd8,Glucose,False
+Cnd9,UCL-TRO-1938,False
+Cnd10,IL6,False
+Cnd11,RA,False
+Cnd12,MEM AA,False
+Cnd13,Dorsomorphin,False
+Cnd14,Geldanamycin,False
+Cnd15,Pd17,False
+Cnd16,Phorbol 12-myristate 13-acetate (PMA),False
+Cnd17,PBS,True
+Cnd18,DMSO,True

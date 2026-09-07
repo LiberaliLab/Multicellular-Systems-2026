@@ -1,2 +1,31 @@
-*config*
-*output*
+# --- local path configuration (never commit machine-specific paths) ---
+# config.example.py IS committed; the real config.py is not.
+/src/mcs2026/config.py
+config.local.py
+
+# --- data (staged on Euler, never in the repo) ---
+/data/
+*.h5ad
+*.zarr/
+*.zarr.zip
+*.npy
+*.npz
+
+# --- generated outputs ---
+/outputs/
+/book/_build/
+*.egg-info/
+
+# --- notebooks ---
+.ipynb_checkpoints/
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venvs/
+.pytest_cache/
+
+# --- os ---
+.DS_Store
+Icon?

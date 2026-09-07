@@ -1,0 +1,225 @@
+row,column,well,condition_code,timepoint_h,cell_line,compound,is_control
+B,2,B02,Cnd17,36,CBA,PBS,True
+B,3,B03,Cnd12,36,CBA,MEM AA,False
+B,4,B04,Cnd4,36,CBA,Wortmannin,False
+B,5,B05,Cnd6,36,CBA,PF-4708671,False
+B,8,B08,Cnd17,48,CBA,PBS,True
+B,9,B09,Cnd12,48,CBA,MEM AA,False
+B,10,B10,Cnd4,48,CBA,Wortmannin,False
+B,11,B11,Cnd6,48,CBA,PF-4708671,False
+B,14,B14,Cnd17,60,CBA,PBS,True
+B,15,B15,Cnd12,60,CBA,MEM AA,False
+B,16,B16,Cnd4,60,CBA,Wortmannin,False
+B,17,B17,Cnd6,60,CBA,PF-4708671,False
+B,20,B20,Cnd17,84,CBA,PBS,True
+B,21,B21,Cnd12,84,CBA,MEM AA,False
+B,22,B22,Cnd4,84,CBA,Wortmannin,False
+B,23,B23,Cnd6,84,CBA,PF-4708671,False
+C,2,C02,Cnd13,36,CBA,Dorsomorphin,False
+C,3,C03,Cnd3,36,CBA,MK-2206,False
+C,4,C04,Cnd7,36,CBA,LipidMix,False
+C,5,C05,Cnd2,36,CBA,IGF,False
+C,8,C08,Cnd13,48,CBA,Dorsomorphin,False
+C,9,C09,Cnd3,48,CBA,MK-2206,False
+C,10,C10,Cnd7,48,CBA,LipidMix,False
+C,11,C11,Cnd2,48,CBA,IGF,False
+C,14,C14,Cnd13,60,CBA,Dorsomorphin,False
+C,15,C15,Cnd3,60,CBA,MK-2206,False
+C,16,C16,Cnd7,60,CBA,LipidMix,False
+C,17,C17,Cnd2,60,CBA,IGF,False
+C,20,C20,Cnd13,84,CBA,Dorsomorphin,False
+C,21,C21,Cnd3,84,CBA,MK-2206,False
+C,22,C22,Cnd7,84,CBA,LipidMix,False
+C,23,C23,Cnd2,84,CBA,IGF,False
+D,2,D02,Cnd7,36,CBA,LipidMix,False
+D,3,D03,Cnd18,36,CBA,DMSO,True
+D,4,D04,Cnd14,36,CBA,Geldanamycin,False
+D,5,D05,Cnd8,36,CBA,Glucose,False
+D,8,D08,Cnd7,48,CBA,LipidMix,False
+D,9,D09,Cnd18,48,CBA,DMSO,True
+D,10,D10,Cnd14,48,CBA,Geldanamycin,False
+D,11,D11,Cnd8,48,CBA,Glucose,False
+D,14,D14,Cnd7,60,CBA,LipidMix,False
+D,15,D15,Cnd18,60,CBA,DMSO,True
+D,16,D16,Cnd14,60,CBA,Geldanamycin,False
+D,17,D17,Cnd8,60,CBA,Glucose,False
+D,20,D20,Cnd7,84,CBA,LipidMix,False
+D,21,D21,Cnd18,84,CBA,DMSO,True
+D,22,D22,Cnd14,84,CBA,Geldanamycin,False
+D,23,D23,Cnd8,84,CBA,Glucose,False
+E,2,E02,Cnd1,36,CBA,Cycloheximide,False
+E,3,E03,Cnd9,36,CBA,UCL-TRO-1938,False
+E,4,E04,Cnd16,36,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+E,5,E05,Cnd4,36,CBA,Wortmannin,False
+E,8,E08,Cnd1,48,CBA,Cycloheximide,False
+E,9,E09,Cnd9,48,CBA,UCL-TRO-1938,False
+E,10,E10,Cnd16,48,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+E,11,E11,Cnd4,48,CBA,Wortmannin,False
+E,14,E14,Cnd1,60,CBA,Cycloheximide,False
+E,15,E15,Cnd9,60,CBA,UCL-TRO-1938,False
+E,16,E16,Cnd16,60,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+E,17,E17,Cnd4,60,CBA,Wortmannin,False
+E,20,E20,Cnd1,84,CBA,Cycloheximide,False
+E,21,E21,Cnd9,84,CBA,UCL-TRO-1938,False
+E,22,E22,Cnd16,84,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+E,23,E23,Cnd4,84,CBA,Wortmannin,False
+F,2,F02,Cnd15,36,CBA,Pd17,False
+F,3,F03,Cnd10,36,CBA,IL6,False
+F,4,F04,Cnd15,36,CBA,Pd17,False
+F,5,F05,Cnd7,36,CBA,LipidMix,False
+F,8,F08,Cnd15,48,CBA,Pd17,False
+F,9,F09,Cnd10,48,CBA,IL6,False
+F,10,F10,Cnd15,48,CBA,Pd17,False
+F,11,F11,Cnd7,48,CBA,LipidMix,False
+F,14,F14,Cnd15,60,CBA,Pd17,False
+F,15,F15,Cnd10,60,CBA,IL6,False
+F,16,F16,Cnd15,60,CBA,Pd17,False
+F,17,F17,Cnd7,60,CBA,LipidMix,False
+F,20,F20,Cnd15,84,CBA,Pd17,False
+F,21,F21,Cnd10,84,CBA,IL6,False
+F,22,F22,Cnd15,84,CBA,Pd17,False
+F,23,F23,Cnd7,84,CBA,LipidMix,False
+G,2,G02,Cnd4,36,CBA,Wortmannin,False
+G,3,G03,Cnd11,36,CBA,RA,False
+G,4,G04,Cnd5,36,CBA,Sapanisertib/INK128,False
+G,5,G05,Cnd14,36,CBA,Geldanamycin,False
+G,8,G08,Cnd4,48,CBA,Wortmannin,False
+G,9,G09,Cnd11,48,CBA,RA,False
+G,10,G10,Cnd5,48,CBA,Sapanisertib/INK128,False
+G,11,G11,Cnd14,48,CBA,Geldanamycin,False
+G,14,G14,Cnd4,60,CBA,Wortmannin,False
+G,15,G15,Cnd11,60,CBA,RA,False
+G,16,G16,Cnd5,60,CBA,Sapanisertib/INK128,False
+G,17,G17,Cnd14,60,CBA,Geldanamycin,False
+G,20,G20,Cnd4,84,CBA,Wortmannin,False
+G,21,G21,Cnd11,84,CBA,RA,False
+G,22,G22,Cnd5,84,CBA,Sapanisertib/INK128,False
+G,23,G23,Cnd14,84,CBA,Geldanamycin,False
+H,2,H02,Cnd2,36,CBA,IGF,False
+H,3,H03,Cnd18,36,CBA,DMSO,True
+H,4,H04,Cnd1,36,CBA,Cycloheximide,False
+H,5,H05,Cnd16,36,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+H,8,H08,Cnd2,48,CBA,IGF,False
+H,9,H09,Cnd18,48,CBA,DMSO,True
+H,10,H10,Cnd1,48,CBA,Cycloheximide,False
+H,11,H11,Cnd16,48,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+H,14,H14,Cnd2,60,CBA,IGF,False
+H,15,H15,Cnd18,60,CBA,DMSO,True
+H,16,H16,Cnd1,60,CBA,Cycloheximide,False
+H,17,H17,Cnd16,60,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+H,20,H20,Cnd2,84,CBA,IGF,False
+H,21,H21,Cnd18,84,CBA,DMSO,True
+H,22,H22,Cnd1,84,CBA,Cycloheximide,False
+H,23,H23,Cnd16,84,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+I,2,I02,Cnd18,36,CBA,DMSO,True
+I,3,I03,Cnd15,36,CBA,Pd17,False
+I,4,I04,Cnd3,36,CBA,MK-2206,False
+I,5,I05,Cnd5,36,CBA,Sapanisertib/INK128,False
+I,8,I08,Cnd18,48,CBA,DMSO,True
+I,9,I09,Cnd15,48,CBA,Pd17,False
+I,10,I10,Cnd3,48,CBA,MK-2206,False
+I,11,I11,Cnd5,48,CBA,Sapanisertib/INK128,False
+I,14,I14,Cnd18,60,CBA,DMSO,True
+I,15,I15,Cnd15,60,CBA,Pd17,False
+I,16,I16,Cnd3,60,CBA,MK-2206,False
+I,17,I17,Cnd5,60,CBA,Sapanisertib/INK128,False
+I,20,I20,Cnd18,84,CBA,DMSO,True
+I,21,I21,Cnd15,84,CBA,Pd17,False
+I,22,I22,Cnd3,84,CBA,MK-2206,False
+I,23,I23,Cnd5,84,CBA,Sapanisertib/INK128,False
+J,2,J02,Cnd14,36,CBA,Geldanamycin,False
+J,3,J03,Cnd13,36,CBA,Dorsomorphin,False
+J,4,J04,Cnd11,36,CBA,RA,False
+J,5,J05,Cnd1,36,CBA,Cycloheximide,False
+J,8,J08,Cnd14,48,CBA,Geldanamycin,False
+J,9,J09,Cnd13,48,CBA,Dorsomorphin,False
+J,10,J10,Cnd11,48,CBA,RA,False
+J,11,J11,Cnd1,48,CBA,Cycloheximide,False
+J,14,J14,Cnd14,60,CBA,Geldanamycin,False
+J,15,J15,Cnd13,60,CBA,Dorsomorphin,False
+J,16,J16,Cnd11,60,CBA,RA,False
+J,17,J17,Cnd1,60,CBA,Cycloheximide,False
+J,20,J20,Cnd14,84,CBA,Geldanamycin,False
+J,21,J21,Cnd13,84,CBA,Dorsomorphin,False
+J,22,J22,Cnd11,84,CBA,RA,False
+J,23,J23,Cnd1,84,CBA,Cycloheximide,False
+K,2,K02,Cnd6,36,CBA,PF-4708671,False
+K,3,K03,Cnd12,36,CBA,MEM AA,False
+K,4,K04,Cnd9,36,CBA,UCL-TRO-1938,False
+K,5,K05,Cnd3,36,CBA,MK-2206,False
+K,8,K08,Cnd6,48,CBA,PF-4708671,False
+K,9,K09,Cnd12,48,CBA,MEM AA,False
+K,10,K10,Cnd9,48,CBA,UCL-TRO-1938,False
+K,11,K11,Cnd3,48,CBA,MK-2206,False
+K,14,K14,Cnd6,60,CBA,PF-4708671,False
+K,15,K15,Cnd12,60,CBA,MEM AA,False
+K,16,K16,Cnd9,60,CBA,UCL-TRO-1938,False
+K,17,K17,Cnd3,60,CBA,MK-2206,False
+K,20,K20,Cnd6,84,CBA,PF-4708671,False
+K,21,K21,Cnd12,84,CBA,MEM AA,False
+K,22,K22,Cnd9,84,CBA,UCL-TRO-1938,False
+K,23,K23,Cnd3,84,CBA,MK-2206,False
+L,2,L02,Cnd17,36,CBA,PBS,True
+L,3,L03,Cnd6,36,CBA,PF-4708671,False
+L,4,L04,Cnd10,36,CBA,IL6,False
+L,5,L05,Cnd11,36,CBA,RA,False
+L,8,L08,Cnd17,48,CBA,PBS,True
+L,9,L09,Cnd6,48,CBA,PF-4708671,False
+L,10,L10,Cnd10,48,CBA,IL6,False
+L,11,L11,Cnd11,48,CBA,RA,False
+L,14,L14,Cnd17,60,CBA,PBS,True
+L,15,L15,Cnd6,60,CBA,PF-4708671,False
+L,16,L16,Cnd10,60,CBA,IL6,False
+L,17,L17,Cnd11,60,CBA,RA,False
+L,20,L20,Cnd17,84,CBA,PBS,True
+L,21,L21,Cnd6,84,CBA,PF-4708671,False
+L,22,L22,Cnd10,84,CBA,IL6,False
+L,23,L23,Cnd11,84,CBA,RA,False
+M,2,M02,Cnd8,36,CBA,Glucose,False
+M,3,M03,Cnd2,36,CBA,IGF,False
+M,4,M04,Cnd17,36,CBA,PBS,True
+M,5,M05,Cnd9,36,CBA,UCL-TRO-1938,False
+M,8,M08,Cnd8,48,CBA,Glucose,False
+M,9,M09,Cnd2,48,CBA,IGF,False
+M,10,M10,Cnd17,48,CBA,PBS,True
+M,11,M11,Cnd9,48,CBA,UCL-TRO-1938,False
+M,14,M14,Cnd8,60,CBA,Glucose,False
+M,15,M15,Cnd2,60,CBA,IGF,False
+M,16,M16,Cnd17,60,CBA,PBS,True
+M,17,M17,Cnd9,60,CBA,UCL-TRO-1938,False
+M,20,M20,Cnd8,84,CBA,Glucose,False
+M,21,M21,Cnd2,84,CBA,IGF,False
+M,22,M22,Cnd17,84,CBA,PBS,True
+M,23,M23,Cnd9,84,CBA,UCL-TRO-1938,False
+N,2,N02,Cnd16,36,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+N,3,N03,Cnd8,36,CBA,Glucose,False
+N,4,N04,Cnd13,36,CBA,Dorsomorphin,False
+N,5,N05,Cnd10,36,CBA,IL6,False
+N,8,N08,Cnd16,48,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+N,9,N09,Cnd8,48,CBA,Glucose,False
+N,10,N10,Cnd13,48,CBA,Dorsomorphin,False
+N,11,N11,Cnd10,48,CBA,IL6,False
+N,14,N14,Cnd16,60,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+N,15,N15,Cnd8,60,CBA,Glucose,False
+N,16,N16,Cnd13,60,CBA,Dorsomorphin,False
+N,17,N17,Cnd10,60,CBA,IL6,False
+N,20,N20,Cnd16,84,CBA,Phorbol 12-myristate 13-acetate (PMA),False
+N,21,N21,Cnd8,84,CBA,Glucose,False
+N,22,N22,Cnd13,84,CBA,Dorsomorphin,False
+N,23,N23,Cnd10,84,CBA,IL6,False
+O,2,O02,Cnd5,36,CBA,Sapanisertib/INK128,False
+O,3,O03,Cnd18,36,CBA,DMSO,True
+O,4,O04,Cnd12,36,CBA,MEM AA,False
+O,5,O05,Cnd18,36,CBA,DMSO,True
+O,8,O08,Cnd5,48,CBA,Sapanisertib/INK128,False
+O,9,O09,Cnd18,48,CBA,DMSO,True
+O,10,O10,Cnd12,48,CBA,MEM AA,False
+O,11,O11,Cnd18,48,CBA,DMSO,True
+O,14,O14,Cnd5,60,CBA,Sapanisertib/INK128,False
+O,15,O15,Cnd18,60,CBA,DMSO,True
+O,16,O16,Cnd12,60,CBA,MEM AA,False
+O,17,O17,Cnd18,60,CBA,DMSO,True
+O,20,O20,Cnd5,84,CBA,Sapanisertib/INK128,False
+O,21,O21,Cnd18,84,CBA,DMSO,True
+O,22,O22,Cnd12,84,CBA,MEM AA,False
+O,23,O23,Cnd18,84,CBA,DMSO,True

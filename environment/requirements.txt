@@ -1,0 +1,36 @@
+# Multicellular Systems 2026 — main course environment (Euler, Python 3.11.6)
+#
+#   module load stack/2024-05 gcc/13.2.0 python/3.11.6_cuda eth_proxy
+#   python -m venv $HOME/venvs/mcs2026
+#   source $HOME/venvs/mcs2026/bin/activate
+#   pip install -r environment/requirements.txt
+#
+# Covers Part 1 (OME-Zarr) and Part 3 (analysis). Napari is a separate,
+# laptop-only environment -- see requirements-napari.txt.
+
+# --- OME-Zarr ---------------------------------------------------------------
+# ngio pins the heavy stack for us: zarr>=3.1.6, numpy>=2.0, dask[array],
+# anndata>=0.12.5,<0.14, pandas, polars, pyarrow, scipy, ome-zarr-models.
+ngio==1.1.0
+# ez-zarr only requires zarr>=3.0.0a0, so it coexists with ngio 1.1.0.
+ez-zarr==0.4.2
+
+# --- analysis ---------------------------------------------------------------
+scanpy>=1.11
+scikit-learn>=1.5
+umap-learn>=0.5.6
+leidenalg>=0.10
+igraph>=0.11
+
+# --- tables and I/O ---------------------------------------------------------
+h5py>=3.11
+openpyxl>=3.1          # reads the 384-well layout workbook
+pyarrow>=16            # well-level tables are written as parquet (also an ngio dep)
+tqdm>=4.66
+
+# --- plotting ---------------------------------------------------------------
+matplotlib>=3.9
+seaborn>=0.13
+
+# --- notebook kernel --------------------------------------------------------
+ipykernel>=6.29

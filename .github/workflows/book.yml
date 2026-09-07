@@ -1,0 +1,89 @@
+name: Build and deploy the course website
+
+on:
+  push:
+    branches: [main, work]     # build on both; only main deploys (see the deploy job)
+  pull_request:
+    branches: [main]
+  workflow_dispatch:           # lets you rebuild by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Jupyter Book
+        run: pip install -r environment/requirements-book.txt
+
+      # Notebooks are committed with their outputs and _config.yml sets
+      # execute_notebooks: off, so this needs neither the cluster data nor a
+      # large runner. --warningiserror turns a broken cross-reference into a
+      # failed build instead of a silently broken link on the live site.
+      - name: Build the book
+        run: jupyter-book build book/ --warningiserror
+
+      # Sphinx puts CSS and JS in _static/. Jekyll ignores directories starting
+      # with an underscore, so without this a branch-based deploy would serve
+      # the pages with no styling at all. The Actions deploy below bypasses
+      # Jekyll anyway; this is cheap insurance.
+      - name: Disable Jekyll
+        run: touch book/_build/html/.nojekyll
+
+      - name: Check every internal link resolves
+        run: |
+          python - <<'PY'
+          import glob, os, re, sys
+          from urllib.parse import unquote, urldefrag, urlparse
+          root = "book/_build/html"
+          pages = [p for p in glob.glob(f"{root}/**/*.html", recursive=True)
+                   if "_static" not in p]
+          broken = []
+          for page in pages:
+              html = open(page, encoding="utf-8").read()
+              base = os.path.dirname(page)
+              for href in re.findall(r'href="([^"]+)"', html):
+                  if href.startswith(("http", "mailto:", "#", "data:", "javascript:", "{{")):
+                      continue
+                  target = unquote(urlparse(urldefrag(href)[0]).path)
+                  if not target:
+                      continue
+                  full = os.path.normpath(os.path.join(base, target))
+                  if not (os.path.exists(full) or os.path.exists(full + ".html")):
+                      broken.append(f"{page} -> {href}")
+          print(f"{len(pages)} pages checked, {len(broken)} broken links")
+          for item in broken[:20]:
+              print("  ", item)
+          sys.exit(1 if broken else 0)
+          PY
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: book/_build/html
+
+  deploy:
+    needs: build
+    # Only main publishes. Pushes to other branches still build above, so you
+    # find out that something is broken before it reaches the live site.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
