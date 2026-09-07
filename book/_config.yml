@@ -1,0 +1,42 @@
+# Jupyter Book 1.x configuration.
+# Build with:  jupyter-book build book/
+title: Multicellular Systems 2026
+author: Silvia Barbiero and Manuel I. Araujo Novoa
+copyright: "2026, ETH Zurich"
+only_build_toc_files: true
+
+execute:
+  # Notebooks are committed WITH their outputs. The site must build on a
+  # GitHub runner that has neither the cluster data nor 64 GB of RAM, so
+  # nothing is re-executed here.
+  execute_notebooks: off
+
+repository:
+  url: https://github.com/Maaraujo-nv/Multicellular-Systems-2026
+  path_to_book: book
+  branch: main
+
+html:
+  use_issues_button: true
+  use_repository_button: true
+  use_edit_page_button: false
+  home_page_in_navbar: false
+  baseurl: https://maaraujo-nv.github.io/Multicellular-Systems-2026/
+
+parse:
+  myst_enable_extensions:
+    - colon_fence      # ::: fences, used for admonitions in notebooks
+    - deflist
+    - dollarmath
+    - linkify
+    - substitution
+
+sphinx:
+  config:
+    html_show_copyright: true
+    # Long feature tables are wide; let them scroll rather than overflow.
+    html_theme_options:
+      repository_provider: github
+      use_download_button: true
+  extra_extensions:
+    - sphinx_togglebutton   # collapsible exercise solutions

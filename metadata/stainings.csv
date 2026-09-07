@@ -1,0 +1,59 @@
+round,channel,marker,marker_full,species,manufacturer,catalogue,intensity_threshold,haralick_threshold,failed
+0,Cy5,PDGFRa,Human PDGF R alpha Antibody,Goat,R&D Systems,AF-307-NA,,,True
+0,DAPI,DAPI,DAPI,,Invitrogen,D1306,3000.0,3000.0,False
+0,FITC,beta-Catenin,anti-beta-Catenin antibody (mouse) BD,Mouse,BD,610154,1000.0,3000.0,False
+0,Texas Red,Foxo3a,Foxo3a (75D8) Rabbit mAb,Rabbit,Cell Signalling Technology,2497S,500.0,750.0,False
+1,Cy5,FGFR1,anti-FGFR1 (rabbit) CellSignaling,Rabbit,Cell Signaling Technology,9740S,500.0,2000.0,False
+1,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+1,FITC,Nanog,anti-Nanog antibody (goat) R&D,Goat,R&D Systems,AF1997,1500.0,2000.0,False
+1,Texas Red,Oct4,anti-Oct3/4 antibody (mouse) BD,Mouse,BD Biosciences,611203,1000.0,2000.0,False
+2,Cy5,GATA4,"Gata-4 Monoclonal Antibody (eBioEvan), eBioscience",Rat,Thermo Scientific,14-9980-82,750.0,3000.0,False
+2,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+2,FITC,p-MyosinIIa,Phospho-Myosin IIa (Ser1943) Antibody,Rabbit,Cell Signaling Technology,5026S,500.0,1000.0,False
+2,Texas Red,GATA6,Human GATA-6 Antibody,Mouse,RnD,MAB1700,500.0,1000.0,False
+3,Cy5,Sox2,"Sox2 Monoclonal Antibody (Btjce), eBioscience™",Rat,Thermo Scientific,14-9811-80,1000.0,2000.0,False
+3,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+3,FITC,EEA1,EEA1 antibody,Mouse,BD Biosciences,610457,800.0,2000.0,False
+3,Texas Red,CyclinA2,Anti-Cyclin A2 antibody [EPR17351] (ab181591),Rabbit,Abcam,ab181591,1000.0,2000.0,False
+4,Cy5,p21,Anti-p21 Waf1/Cip1 Rabbit Monoclonal Antibody [12D1],Rabbit,Cell Signaling Technology,2947S,500.0,2000.0,False
+4,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+4,FITC,SOX17,Human SOX17 Antibody Goat,Goat,R&D Systems,AF1924,1500.0,2000.0,False
+4,Texas Red,GM130,Purified Mouse Anti-GM130,Mouse,BD,610823,500.0,1000.0,False
+8,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+8,FITC,YAP1,YAP1 antibody,Mouse,Abcam,ab56701,1500.0,3000.0,False
+8,Texas Red,Foxo1,Foxo1 (C29H4) Rabbit mAb,Rabbit,Cell Signalling Technology,2880S,300.0,1000.0,False
+14,Cy5,Ki67,"Anti Ki 67, Clone: B56, BD",Mouse,BD,556003,500.0,2000.0,False
+14,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+14,FITC,GATA3,Anti-GATA3 antibody [EPR16651] - ChIP Grade (ab199428),Rabbit,Abcam,ab199428,1000.0,2500.0,False
+15,Cy5,p-S6,Phospho S6 Ribosomal Protein (Ser235/236) Antibody,Rabbit,Cell Signaling Technolog,2211S,500.0,2000.0,False
+15,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+15,FITC,Mitochondria,Anti-Mitochondria antibody,Mouse,Abcam,ab3298,1000.0,3000.0,False
+17,Cy5,Pmp70,"Pmp70 Polyclonal Antibody, Unconjugated, Species Reactivity: Human, Mouse, Rat, Host: Rabbit / IgG",Rabbit,Thermo Scientific,PA1-650,500.0,1500.0,False
+17,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+17,FITC,RNAPII-pS5,Anti-RNA polymerase II CTD repeat YSPTSPS (phospho S5) antibody [4H8] - ChIP Grade (ab5408),Mouse,Abcam,ab5408,2500.0,2000.0,False
+18,Cy5,ZO-1,"ZO-1 Monoclonal Antibody (ZO1-1A12), Unconjugated, Species Reactivity: Dog, Human, Host: Mouse / IgG1",Mouse,Thermo Scientific,33-9100,500.0,2000.0,False
+18,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+18,FITC,PDGFRa,Human PDGF R alpha Antibody,Goat,R&D Systems,AF-307-NA,800.0,2500.0,False
+18,Texas Red,GRP78,GRP78 Bip,Rabbit,Abcam,ab21685,1500.0,2000.0,False
+19,Cy5,c-Myc,c-Myc antibody [Y69],Rabbit,Abcam,ab32072,400.0,1000.0,False
+19,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+19,FITC,a-Tubulin,α-Tubulin,Mouse,Oncogene,CP06-100UG,850.0,2000.0,False
+20,Cy5,E-cadherin,"E-cadherin Monoclonal Antibody (ECCD-2), Unconjugated, Species Reactivity: Mouse, Host: Rat / IgG2a",Rat,Thermo Scientific,13-1900,200.0,2000.0,False
+20,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+20,FITC,Giantin,Giantin antibody,Rabbit,Abcam,ab24586,1800.0,3000.0,False
+20,Texas Red,HSP90,HSP90 Santa Cruz Biotechnology,Mouse,Santa Cruz Biotechnology,SC-13119,1300.0,3500.0,False
+21,Cy5,LAMP1,Anti-LAMP1 antibody - Lysosome Marker (ab24170),Rabbit,Abcam,ab24170,1000.0,5000.0,False
+21,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+22,Cy5,Fibronectin,"Monoclonal Anti-Fibronectin antibody produced in mouse,clone IST-4, ascites fluid",Mouse,Sigma-Aldrich,F0916-100UL,400.0,4000.0,False
+22,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+24,Cy5,p-AKT,Phospho-AKT (Ser473) Monoclonal antibody,Mouse,Proteintech,66444-1-Ig,700.0,2000.0,False
+24,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+24,Texas Red,LAMA4,Anti-LAMA4 antibody produced in rabbit,Rabbit,Merk/atlas,HPA015693,300.0,1000.0,False
+25,Cy5,DDX6,Rabbit anti-DDX6 Antibody Affinity Purified,Rabbit,Fortis,A300-461A,1400.0,2000.0,False
+25,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+27,Cy5,LaminA,anti-Lamin A antibody,Mouse,Abcam,ab8990,500.0,2500.0,False
+27,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+27,Texas Red,LaminB1,Anti-Lamin B1 antibody [EPR22165-121] (ab229025),Rabbit,Abcam,ab229025,4500.0,5000.0,False
+28,Cy5,Integrin-b1,Anti-Integrin beta 1 antibody [12G10],Mouse,Abcam,ab30394,,,True
+28,DAPI,DAPI,DAPI,,Invitrogen,D1306,,,False
+28,FITC,Calreticulin,Calreticulin antibody [EPR3924],Rabbit,Abcam,ab92516,7500.0,5000.0,False

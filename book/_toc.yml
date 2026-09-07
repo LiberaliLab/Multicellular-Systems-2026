@@ -1,0 +1,55 @@
+format: jb-book
+root: landing
+
+parts:
+  - caption: Course information
+    chapters:
+      - file: course_schedule
+      - file: setup/index
+        sections:
+          - file: setup/euler_jupyterhub
+          - file: setup/python_environment
+          - file: setup/data
+          - file: setup/napari_local
+
+  - caption: Part 1 — OME-Zarr
+    chapters:
+      - file: part1_omezarr/intro
+        sections:
+          - file: part1_omezarr/01_what_is_omezarr
+          - file: part1_omezarr/02_ezzarr_quicklook
+          - file: part1_omezarr/03_ngio_container
+          - file: part1_omezarr/04_ngio_plates_wells
+          - file: part1_omezarr/05_labels_rois_tables
+          - file: part1_omezarr/cheatsheet
+
+  - caption: Part 2 — Napari
+    chapters:
+      - file: part2_napari/intro
+        sections:
+          - file: part2_napari/01_napari_tour
+          - file: part2_napari/02_omezarr_in_napari
+          - file: part2_napari/exercises
+
+  - caption: Part 3 — Multi-condition analysis
+    chapters:
+      - file: part3_analysis/intro
+        sections:
+          - file: part3_analysis/00_experiment_and_layout
+          - file: part3_analysis/01_decode_and_slim
+          - file: part3_analysis/02_qc_and_normalisation
+          - file: part3_analysis/03_signaling
+          - file: part3_analysis/04_mechanics
+          - file: part3_analysis/05_metabolism
+          - file: part3_analysis/06_organelles
+          - file: part3_analysis/07_celltypes_and_proportions
+          - file: part3_analysis/08_integration
+
+  - caption: Independent work
+    chapters:
+      - file: projects
+
+  - caption: Further information
+    chapters:
+      - file: acknowledgements
+      - file: further_reading

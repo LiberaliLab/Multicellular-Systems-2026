@@ -1,0 +1,9 @@
+# Builds the course website (Jupyter Book -> GitHub Pages).
+# Only needed to build the site locally or in CI -- students never install this.
+#
+#   pip install -r environment/requirements-book.txt
+#   jupyter-book build book/
+#
+# Jupyter Book 1.x (Sphinx-based). 2.x is a MyST rewrite with a different
+# config format and a different look -- do not upgrade without redoing _config.yml.
+jupyter-book==1.0.4.post1
