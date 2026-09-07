@@ -43,6 +43,6 @@
   — "SuperPlots: communicating reproducibility and variability in cell biology". Short,
   and directly about the replicate-unit problem this course keeps returning to.
 
-## Image ANalysis Basics
+## Image Analysis Basics
 - [Methods in Cell Analysis and Laboratory Automation: Image Analysis](https://m-albert.github.io/scu_lab_course_ia)
 by Marvin Albert and Andreas Cuny (Single Cell Unit, D-BSSE, ETH Zürich).

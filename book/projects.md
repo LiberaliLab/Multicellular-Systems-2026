@@ -39,12 +39,6 @@ Golgi, lysosome, endosome, peroxisome, ER. Which organelle markers move together
 perturbations, and does that grouping match cell biology? Geldanamycin (HSP90) and
 Cycloheximide (translation) are the interesting ones here.
 :::
-
-:::{grid-item-card} 5 — Cross-theme
-Take the condition × theme summary from chapter 08 and interrogate it. Does each
-perturbation really move its own theme most? Which ones do not, and is that biology or
-an artefact of how the panels were defined?
-:::
 ::::
 
 ## What makes a good project
