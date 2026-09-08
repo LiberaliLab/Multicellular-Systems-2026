@@ -80,7 +80,7 @@ This is the main reason to open the viewer at all. Look for:
 
 ```{tip}
 Note the id of anything odd. In
-[Part 1 chapter 3.3](../part1_omezarr/operations/03_ngio/03_labels_tables.ipynb) you can go straight from
+[Part 1 chapter 3.3](../part1_omezarr/ngio/03_labels_tables.ipynb) you can go straight from
 an id to its measurements with `masking_table.get_label(id)`, and decide whether the
 feature table's outliers are biology or segmentation.
 ```

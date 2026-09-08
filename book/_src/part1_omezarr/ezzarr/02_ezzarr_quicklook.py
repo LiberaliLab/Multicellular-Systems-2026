@@ -271,7 +271,7 @@ df
 # mask. Use the masking ROI table you loaded above to find where one object is.
 #
 # *(This is genuinely fiddly with ez-zarr alone — see how far you get, then look at how
-# [chapter 3.3](03_ngio/03_labels_tables.ipynb) does it with `ngio`.)*
+# [chapter 3.3](../ngio/03_labels_tables.ipynb) does it with `ngio`.)*
 
 # %% [markdown]
 # :::{admonition} Solution
@@ -304,4 +304,4 @@ df
 # %% [markdown]
 # ---
 #
-# **Next:** [3.1 · Containers, images and labels](03_ngio/01_container.ipynb).
+# **Next:** [3.1 · Containers, images and labels](../ngio/01_container.ipynb).
