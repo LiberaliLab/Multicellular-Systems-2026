@@ -16,7 +16,7 @@
 #
 # In this notebook you will:
 #
-# - look at an OME-Zarr **as directories on disk**, before any library hides it
+# - look at an OME-Zarr **as directories on disk**
 # - read the metadata that makes it an image rather than a pile of files
 # - understand chunks, and why a 100 GB image opens instantly
 # - understand the multiscale pyramid, and how to choose a level
@@ -200,81 +200,6 @@ if tables_path.exists():
 # read these same JSON files and these same chunks — they just save you from writing the
 # path arithmetic yourself, and they handle the parts of the specification that are
 # fiddlier than they look.
-# :::
-
-# %% [markdown]
-# ---
-#
-# ## Exercises
-#
-# ### 1. How much does the pyramid cost?
-#
-# Add up the size of every pyramid level. A pyramid that halves in x and y each step
-# stores 1 + 1/4 + 1/16 + … of the original. What is that sum, and what does it mean for
-# storage?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for dataset in multiscale["datasets"]:
-#     level = image_path / dataset["path"]
-#     total = sum(p.stat().st_size for p in level.rglob("*") if p.is_file())
-#     print(f"level {dataset['path']}: {total / 1e6:8.1f} MB")
-# ```
-#
-# The geometric series $1 + \frac14 + \frac1{16} + \dots$ converges to $\frac43$, so a
-# complete pyramid costs about **33% more** than the full-resolution image alone. That is
-# the price of being able to open the image at any zoom instantly — and it is cheap.
-# :::
-
-# %% [markdown]
-# ### 2. Find the physical size of a pixel
-#
-# Using the `scale` values, what is one pixel in micrometres at level 0? At level 2? Why
-# does the first number in `scale` not change?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for dataset in multiscale["datasets"]:
-#     scale = dataset["coordinateTransformations"][0]["scale"]
-#     print(dataset["path"], dict(zip([a["name"] for a in multiscale["axes"]], scale)))
-# ```
-#
-# The `x` and `y` scales double at each level, because each level has half as many pixels
-# covering the same physical distance. The channel axis (`c`) has a scale of 1 everywhere
-# — it is not a spatial axis, so downsampling does not apply to it. The `z` scale is also
-# usually left alone, since the pyramid is normally built in x and y only.
-# :::
-
-# %% [markdown]
-# ### 3. Which chunks would you read?
-#
-# Given the array shape and chunk shape above, how many chunks does a 512 × 512 window in
-# the middle of the image touch? How many would you read to display the whole well as a
-# 1,000-pixel-wide thumbnail from level 0 — and from the smallest level?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# import math
-# cy, cx = chunks[-2], chunks[-1]
-# print("512x512 window touches at most",
-#       (math.ceil(512 / cy) + 1) * (math.ceil(512 / cx) + 1), "chunks")
-#
-# ny, nx = shape[-2], shape[-1]
-# print("whole image at level 0:", math.ceil(ny / cy) * math.ceil(nx / cx), "chunks")
-# ```
-#
-# A small window touches a handful. The whole image at level 0 touches thousands — which
-# is exactly the situation the pyramid exists to avoid. For a thumbnail you read the
-# smallest level instead, where the entire well may be one or two chunks.
 # :::
 
 # %% [markdown]

@@ -18,7 +18,7 @@ last capability is how the Part 3 dataset was built.
 
 | | |
 |---|---|
-| [01](01_what_is_omezarr.ipynb) | What OME-Zarr actually is — on disk, by hand, before any library |
+| [01](01_what_is_omezarr.ipynb) | What OME-Zarr actually is — on disk, by hand |
 | [02](02_ezzarr_quicklook.ipynb) | `ez-zarr`: plates, wells and a first look at the images |
 | [03](03_ngio_container.ipynb) | `ngio`: containers, images, labels, pixel sizes, ROIs |
 | [04](04_ngio_plates_wells.ipynb) | Plates and wells: from 384 wells to one table |
