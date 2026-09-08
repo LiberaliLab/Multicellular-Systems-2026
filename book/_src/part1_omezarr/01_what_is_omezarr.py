@@ -12,7 +12,7 @@
 # ---
 
 # %% [markdown]
-# # 01 · What OME-Zarr is
+# # 1 · What OME-Zarr is
 #
 # In this notebook you will:
 #
@@ -95,6 +95,16 @@ show_tree(PLATE_PATH)
 #
 # So the path `B/03/0` means **row B, column 3, image 0** — the addressing you will use
 # for the rest of Part 1.
+#
+# ```{image} ../images/zarr_hierarchy_light.svg
+# :class: only-light
+# :alt: A 384-well plate map with well B/03 highlighted, next to the matching directory tree plate.zarr/B/03/0 containing pyramid levels, labels and tables.
+# ```
+#
+# ```{image} ../images/zarr_hierarchy_dark.svg
+# :class: only-dark
+# :alt: A 384-well plate map with well B/03 highlighted, next to the matching directory tree plate.zarr/B/03/0 containing pyramid levels, labels and tables.
+# ```
 
 # %%
 plate_metadata = json.loads((PLATE_PATH / ".zattrs").read_text())
@@ -102,7 +112,7 @@ plate_meta = plate_metadata["plate"]
 print("rows:       ", [r["name"] for r in plate_meta["rows"]][:8], "...")
 print("columns:    ", [c["name"] for c in plate_meta["columns"]][:8], "...")
 print("wells:      ", len(plate_meta["wells"]))
-print("acquisitions:", plate.get("acquisitions", "none declared"))
+print("acquisitions:", plate_meta.get("acquisitions", "none declared"))
 
 # %% [markdown]
 # ## Inside one image
@@ -130,6 +140,16 @@ for dataset in multiscale["datasets"]:
 #
 # This is what makes the format usable: to draw a thumbnail you read the smallest level,
 # not the largest one downsampled.
+#
+# ```{image} ../images/zarr_pyramid_light.svg
+# :class: only-light
+# :alt: Four nested squares showing pyramid levels 0 to 3, each labelled with its pixel dimensions and micrometres per pixel, halving at every step.
+# ```
+#
+# ```{image} ../images/zarr_pyramid_dark.svg
+# :class: only-dark
+# :alt: Four nested squares showing pyramid levels 0 to 3, each labelled with its pixel dimensions and micrometres per pixel, halving at every step.
+# ```
 
 # %%
 channels = image_metadata.get("omero", {}).get("channels", [])
@@ -168,6 +188,17 @@ if chunk_files:
 # handful of small files, not the whole array — whether the store is on this disk, on a
 # network filesystem, or in an S3 bucket.
 #
+#
+# ```{image} ../images/zarr_chunks_light.svg
+# :class: only-light
+# :alt: A pyramid level drawn as a grid of chunk files, with a dashed read window covering four of the forty chunks.
+# ```
+#
+# ```{image} ../images/zarr_chunks_dark.svg
+# :class: only-dark
+# :alt: A pyramid level drawn as a grid of chunk files, with a dashed read window covering four of the forty chunks.
+# ```
+#
 # Chunk shape is therefore a real design decision. Chunks that are too small mean a lot
 # of file overhead; too large and every small read pulls in data you do not want.
 
@@ -205,4 +236,4 @@ if tables_path.exists():
 # %% [markdown]
 # ---
 #
-# **Next:** [02 · A quick look with ez-zarr](02_ezzarr_quicklook.ipynb).
+# **Next:** [2 · A quick look with ez-zarr](02_ezzarr_quicklook.ipynb).

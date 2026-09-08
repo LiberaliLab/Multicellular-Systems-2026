@@ -12,7 +12,7 @@
 # ---
 
 # %% [markdown]
-# # 04 · Plates and wells
+# # 3.2 · Plates and wells
 #
 # In this notebook you will:
 #
@@ -42,7 +42,7 @@ import pandas as pd
 
 from ngio import open_ome_zarr_plate, open_ome_zarr_well
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 from mcs2026 import plotting
 from mcs2026.config import PLATE_PATH
 
@@ -91,7 +91,7 @@ plate.well_images_paths(row=row, column=int(column))
 # ## Getting containers
 #
 # Now we actually open things. Each of these returns the `OmeZarrContainer` objects from
-# [chapter 03](03_ngio_container.ipynb).
+# [chapter 3.1](01_container.ipynb).
 
 # %%
 container = plate.get_image(row=row, column=int(column), image_path="0")
@@ -167,7 +167,7 @@ frame.head()
 # :::{important}
 # **This is how the Part 3 dataset was made.** A feature table per well, concatenated
 # across the plate, then written out as AnnData. The 4,464 columns you decode in
-# [Part 3 chapter 01](../part3_analysis/01_decode_and_slim.ipynb) came out of a call like
+# [Part 3 chapter 01](../../part3_analysis/01_decode_and_slim.ipynb) came out of a call like
 # the one above.
 #
 # There is a variant, `concatenate_image_tables_as`, which returns a specific table type
@@ -261,7 +261,7 @@ layout = [
 #
 # Empty border rows and columns are normal: edge wells evaporate faster, so they are
 # often left out deliberately. Compare this map with the one in
-# [Part 3 chapter 00](../part3_analysis/00_experiment_and_layout.ipynb).
+# [Part 3 chapter 00](../../part3_analysis/00_experiment_and_layout.ipynb).
 # :::
 
 # %% [markdown]
@@ -315,4 +315,4 @@ layout = [
 # %% [markdown]
 # ---
 #
-# **Next:** [05 · Labels, ROIs and feature tables](05_labels_rois_tables.ipynb).
+# **Next:** [3.3 · Labels, ROIs and feature tables](03_labels_tables.ipynb).

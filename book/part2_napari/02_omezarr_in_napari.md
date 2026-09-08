@@ -80,7 +80,7 @@ This is the main reason to open the viewer at all. Look for:
 
 ```{tip}
 Note the id of anything odd. In
-[Part 1 chapter 05](../part1_omezarr/05_labels_rois_tables.ipynb) you can go straight from
+[Part 1 chapter 3.3](../part1_omezarr/03_ngio/03_labels_tables.ipynb) you can go straight from
 an id to its measurements with `masking_table.get_label(id)`, and decide whether the
 feature table's outliers are biology or segmentation.
 ```
@@ -91,7 +91,7 @@ Drag a whole plate in and the plugin shows the wells it finds. For a 384-well pl
 is slow and unwieldy — the viewer is not a plate browser.
 
 In practice: **open one well at a time.** Use `ngio` to decide which well is interesting
-(Part 1 chapter 04 aggregates a table across the plate in one call), then open that well
+(Part 1 chapter 3.2 aggregates a table across the plate in one call), then open that well
 here to look at it. Analysis narrows down; the viewer inspects.
 
 ```{note}
