@@ -11,7 +11,7 @@ session.
 ## Opening it
 
 An OME-Zarr is a **directory**, not a file — this is the thing from
-[Part 1 chapter 01](../part1_omezarr/01_what_is_omezarr.ipynb) that trips people up here.
+[Part 1 chapter 01](../part1_omezarr/concept/01_what_is_omezarr.ipynb) that trips people up here.
 
 1. Drag the `.zarr` **folder** onto the napari window.
 2. Napari asks which reader to use. Choose **napari-ome-zarr**.
@@ -49,7 +49,7 @@ Each channel is its own layer, so set each one separately:
 4. set **blending** to `additive` on every layer above the bottom one
 
 Now toggle each layer's eye icon in turn. Which structures are in which channel? Look up
-the round each marker was imaged in — [Part 3 chapter 00](../part3_analysis/00_experiment_and_layout.ipynb)
+the round each marker was imaged in — [Part 3 chapter 00](../part3_analysis/1_preparation/00_experiment_and_layout.ipynb)
 built exactly that table.
 
 ## Segmentations
@@ -80,7 +80,7 @@ This is the main reason to open the viewer at all. Look for:
 
 ```{tip}
 Note the id of anything odd. In
-[Part 1 chapter 3.3](../part1_omezarr/03_ngio/03_labels_tables.ipynb) you can go straight from
+[Part 1 chapter 3.3](../part1_omezarr/operations/03_ngio/03_labels_tables.ipynb) you can go straight from
 an id to its measurements with `masking_table.get_label(id)`, and decide whether the
 feature table's outliers are biology or segmentation.
 ```

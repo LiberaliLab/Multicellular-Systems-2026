@@ -73,7 +73,7 @@ Notebooks are authored as [jupytext](https://jupytext.readthedocs.io) `.py` file
 
 ```bash
 ./tools/build_notebooks.sh                      # rebuild all, keeping stored outputs
-./tools/build_notebooks.sh part3_analysis/03_signaling   # just one
+./tools/build_notebooks.sh part3_analysis/2_themes/03_signaling   # just one
 python tools/execute_notebooks.py book/part3_analysis    # run against real data
 pytest tests/                                   # 19 checks on layout + decoding
 ```
