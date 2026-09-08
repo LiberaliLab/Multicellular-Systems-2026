@@ -13,6 +13,8 @@ The course has three parts:
 :gutter: 3
 
 :::{grid-item-card} Part 1 — OME-Zarr
+:link: part1_omezarr/intro
+:link-type: doc
 Read a high-content screen the way the field actually stores it, with
 `ez-zarr` and `ngio`. Plates, wells, pyramids, labels and tables.
 +++
@@ -20,6 +22,8 @@ Runs on **Euler**
 :::
 
 :::{grid-item-card} Part 2 — Napari
+:link: part2_napari/intro
+:link-type: doc
 Look at the same data with your own eyes: channels, pyramid levels and
 segmentation overlays in an interactive viewer.
 +++
@@ -27,6 +31,8 @@ Runs on **your laptop**
 :::
 
 :::{grid-item-card} Part 3 — Analysis
+:link: part3_analysis/intro
+:link-type: doc
 734,000 cells, 18 perturbations, 4 timepoints. Signaling, cell mechanics,
 metabolism and organelles, one topic per group. What will be presented at the end of the course!
 +++
@@ -45,6 +51,8 @@ Part 3 runs in three stages:
 :gutter: 3
 
 :::{grid-item-card} Stage 1 — Data clean-up and normalisation
+:link: part3_analysis/1_preparation/intro
+:link-type: doc
 You will not be handed a tidy table. The feature columns are named by *channel and
 imaging round*, and have to be matched to antibody solution.
 Normalization to controls also have to be applied correctly.
@@ -53,12 +61,16 @@ Dont worry the notebooks help you go through all of this
 :::
 
 :::{grid-item-card} Stage 2 — Group analysis basics
+:link: part3_analysis/2_themes/intro
+:link-type: doc
 Here we will divide into topics by groups and we will go through the notebooks for each topic. This will teach you the basics that we expect from the group analysis and will hopefully set you in the correct direction.
 +++
 Part 3 Notebooks - from 03 signaling to 06 organelles
 :::
 
 :::{grid-item-card} Stage 3 — Group analysis and further examples
+:link: part3_analysis/3_going_further/intro
+:link-type: doc
 Here you have your own time, with our supervision to explore the data and find new effects.
 +++
 Dont hesitate to ask and look through Part 3 notebooks 07_ and 08_

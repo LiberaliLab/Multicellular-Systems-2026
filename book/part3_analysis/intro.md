@@ -31,19 +31,37 @@ MK-2206, Wortmannin, INK128 and PF-4708671 all hit the signaling axis; Glucose, 
 and MEM AA are metabolic. So there is a real question with an expected answer —
 **does each perturbation move its own theme most?** — and chapter 08 asks it.
 
-## Chapters
+## Three stages
+
+### [Stage 1 — Preparing the data](1_preparation/intro.md)
+
+From 4,464 anonymous columns to an annotated, normalised table.
 
 | | |
 |---|---|
-| [00](00_experiment_and_layout.ipynb) | The plate layout, and building the staining decoder |
-| [01](01_decode_and_slim.ipynb) | 4,464 unnamed columns → a named, loadable table |
-| [02](02_qc_and_normalisation.ipynb) | Quality control and normalising to the controls |
-| [03](03_signaling.ipynb) | Signaling |
-| [04](04_mechanics.ipynb) | Cell-specific mechanics |
-| [05](05_metabolism.ipynb) | Metabolism |
-| [06](06_organelles.ipynb) | Organelles |
-| [07](07_celltypes_and_proportions.ipynb) | Cell types and how their proportions shift |
-| [08](08_integration.ipynb) | Putting the four themes back together |
+| [00](1_preparation/00_experiment_and_layout.ipynb) | The plate layout, and building the staining decoder |
+| [01](1_preparation/01_decode_and_slim.ipynb) | 4,464 unnamed columns → a named, loadable table |
+| [02](1_preparation/02_qc_and_normalisation.ipynb) | Quality control and normalising to the controls |
+
+### [Stage 2 — The four themes](2_themes/intro.md)
+
+One panel at a time, each chapter the same five steps.
+
+| | |
+|---|---|
+| [03](2_themes/03_signaling.ipynb) | Signaling |
+| [04](2_themes/04_mechanics.ipynb) | Cell-specific mechanics |
+| [05](2_themes/05_metabolism.ipynb) | Metabolism |
+| [06](2_themes/06_organelles.ipynb) | Organelles |
+
+### [Stage 3 — Going further](3_going_further/intro.md)
+
+Cell identity, the replicate unit, and whether the four themes hold together.
+
+| | |
+|---|---|
+| [07](3_going_further/07_celltypes_and_proportions.ipynb) | Cell types and how their proportions shift |
+| [08](3_going_further/08_integration.ipynb) | Putting the four themes back together |
 
 ```{important}
 Part 3 needs a JupyterHub session with **at least 32 GB of memory** (4 cores × 8 GB).

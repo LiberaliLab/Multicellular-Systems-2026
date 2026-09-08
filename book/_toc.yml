@@ -16,12 +16,16 @@ parts:
     chapters:
       - file: part1_omezarr/intro
         sections:
-          - file: part1_omezarr/01_what_is_omezarr
-          - file: part1_omezarr/02_ezzarr_quicklook
-          - file: part1_omezarr/03_ngio/01_container
-          - file: part1_omezarr/03_ngio/02_plates_wells
-          - file: part1_omezarr/03_ngio/03_labels_tables
-          - file: part1_omezarr/cheatsheet
+          - file: part1_omezarr/concept/intro
+            sections:
+              - file: part1_omezarr/concept/01_what_is_omezarr
+          - file: part1_omezarr/operations/intro
+            sections:
+              - file: part1_omezarr/operations/02_ezzarr_quicklook
+              - file: part1_omezarr/operations/03_ngio/01_container
+              - file: part1_omezarr/operations/03_ngio/02_plates_wells
+              - file: part1_omezarr/operations/03_ngio/03_labels_tables
+              - file: part1_omezarr/operations/cheatsheet
 
   - caption: Part 2 — Napari
     chapters:
@@ -35,15 +39,21 @@ parts:
     chapters:
       - file: part3_analysis/intro
         sections:
-          - file: part3_analysis/00_experiment_and_layout
-          - file: part3_analysis/01_decode_and_slim
-          - file: part3_analysis/02_qc_and_normalisation
-          - file: part3_analysis/03_signaling
-          - file: part3_analysis/04_mechanics
-          - file: part3_analysis/05_metabolism
-          - file: part3_analysis/06_organelles
-          - file: part3_analysis/07_celltypes_and_proportions
-          - file: part3_analysis/08_integration
+          - file: part3_analysis/1_preparation/intro
+            sections:
+              - file: part3_analysis/1_preparation/00_experiment_and_layout
+              - file: part3_analysis/1_preparation/01_decode_and_slim
+              - file: part3_analysis/1_preparation/02_qc_and_normalisation
+          - file: part3_analysis/2_themes/intro
+            sections:
+              - file: part3_analysis/2_themes/03_signaling
+              - file: part3_analysis/2_themes/04_mechanics
+              - file: part3_analysis/2_themes/05_metabolism
+              - file: part3_analysis/2_themes/06_organelles
+          - file: part3_analysis/3_going_further/intro
+            sections:
+              - file: part3_analysis/3_going_further/07_celltypes_and_proportions
+              - file: part3_analysis/3_going_further/08_integration
 
   - caption: Independent work
     chapters:
