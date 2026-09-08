@@ -37,7 +37,7 @@ import pandas as pd
 
 import ngio
 
-sys.path.insert(0, str(Path.cwd().parents[3] / "src"))
+sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 from mcs2026.config import PLATE_PATH
 
 container = ngio.open_ome_zarr_container(PLATE_PATH / "B" / "03" / "0")
@@ -103,7 +103,7 @@ ax.set_title(roi.get_name()); ax.axis("off")
 #
 # A masking ROI table is indexed by **label id**, so it answers "where is object 42?"
 # directly. This is the thing that made the last exercise of
-# [chapter 2](../02_ezzarr_quicklook.ipynb) awkward.
+# [chapter 2](../ezzarr/02_ezzarr_quicklook.ipynb) awkward.
 
 # %%
 masking_names = container.list_tables(filter_types="masking_roi_table")
@@ -374,7 +374,7 @@ my_features
 # That is Part 1. You can now open an OME-Zarr, navigate a plate, read and write labels
 # and tables, and aggregate measurements across a screen.
 #
-# **Next:** [Part 2 — Napari](../../../part2_napari/intro.md), to look at the same data with
+# **Next:** [Part 2 — Napari](../../part2_napari/intro.md), to look at the same data with
 # your own eyes. Or jump to
-# [Part 3](../../../part3_analysis/intro.md), which starts from a table built exactly the way
+# [Part 3](../../part3_analysis/intro.md), which starts from a table built exactly the way
 # [chapter 3.2](02_plates_wells.ipynb) built one.

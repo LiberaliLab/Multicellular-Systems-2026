@@ -14,7 +14,7 @@ tool for *looking*, and you will reach for it constantly.
 labels and tables, and can pull one table out of all 384 wells in a single call. That
 last capability is how the Part 3 dataset was built.
 
-## Two sections
+## Three sections
 
 ### [Understanding OME-Zarr](concept/intro.md)
 
@@ -24,17 +24,25 @@ What the format is, before any library hides it.
 |---|---|
 | [1](concept/01_what_is_omezarr.ipynb) | What OME-Zarr actually is — on disk, by hand |
 
-### [Working with OME-Zarr](operations/intro.md)
+### [Looking with ez-zarr](ezzarr/intro.md)
 
-The two libraries, and when to reach for which.
+The small library, for when you just want to see the data.
 
 | | |
 |---|---|
-| [2](operations/02_ezzarr_quicklook.ipynb) | `ez-zarr`: plates, wells and a first look at the images |
-| [3.1](operations/03_ngio/01_container.ipynb) | `ngio`: containers, images, labels, pixel sizes, ROIs |
-| [3.2](operations/03_ngio/02_plates_wells.ipynb) | Plates and wells: from 384 wells to one table |
-| [3.3](operations/03_ngio/03_labels_tables.ipynb) | Labels, ROI tables and feature tables |
-| [cheat sheet](operations/cheatsheet.md) | Quick reference for both libraries |
+| [2](ezzarr/02_ezzarr_quicklook.ipynb) | Plates, wells and a first look at the images |
+
+### [Working with ngio](ngio/intro.md)
+
+The fuller library — and the one that built the Part 3 dataset.
+
+| | |
+|---|---|
+| [3.1](ngio/01_container.ipynb) | Containers, images, labels, pixel sizes, ROIs |
+| [3.2](ngio/02_plates_wells.ipynb) | Plates and wells: from 384 wells to one table |
+| [3.3](ngio/03_labels_tables.ipynb) | Labels, ROI tables and feature tables |
+
+And a [cheat sheet](cheatsheet.md) covering both libraries.
 
 ```{note}
 Runs on Euler, in the **Python (MCS 2026)** kernel. Set `DATA_ROOT` in

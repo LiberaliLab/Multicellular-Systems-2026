@@ -1,3 +1,6 @@
+# Rule: a group carries a `caption:` only when it has no landing page of its own.
+# Parts 1-3 each have an intro page, so that page IS the header -- adding a caption
+# would print the same title twice in the sidebar.
 format: jb-book
 root: landing
 
@@ -12,31 +15,28 @@ parts:
           - file: setup/data
           - file: setup/napari_local
 
-  - caption: Part 1 — OME-Zarr
-    chapters:
+  - chapters:
       - file: part1_omezarr/intro
         sections:
           - file: part1_omezarr/concept/intro
             sections:
               - file: part1_omezarr/concept/01_what_is_omezarr
-          - file: part1_omezarr/operations/intro
+          - file: part1_omezarr/ezzarr/intro
             sections:
-              - file: part1_omezarr/operations/02_ezzarr_quicklook
-              - file: part1_omezarr/operations/03_ngio/01_container
-              - file: part1_omezarr/operations/03_ngio/02_plates_wells
-              - file: part1_omezarr/operations/03_ngio/03_labels_tables
-              - file: part1_omezarr/operations/cheatsheet
+              - file: part1_omezarr/ezzarr/02_ezzarr_quicklook
+          - file: part1_omezarr/ngio/intro
+            sections:
+              - file: part1_omezarr/ngio/01_container
+              - file: part1_omezarr/ngio/02_plates_wells
+              - file: part1_omezarr/ngio/03_labels_tables
+          - file: part1_omezarr/cheatsheet
 
-  - caption: Part 2 — Napari
-    chapters:
       - file: part2_napari/intro
         sections:
           - file: part2_napari/01_napari_tour
           - file: part2_napari/02_omezarr_in_napari
           - file: part2_napari/exercises
 
-  - caption: Part 3 — Multi-condition analysis
-    chapters:
       - file: part3_analysis/intro
         sections:
           - file: part3_analysis/1_preparation/intro

@@ -236,4 +236,4 @@ if tables_path.exists():
 # %% [markdown]
 # ---
 #
-# **Next:** [2 · A quick look with ez-zarr](../operations/02_ezzarr_quicklook.ipynb).
+# **Next:** [2 · A quick look with ez-zarr](../ezzarr/02_ezzarr_quicklook.ipynb).
