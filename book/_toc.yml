@@ -18,9 +18,9 @@ parts:
         sections:
           - file: part1_omezarr/01_what_is_omezarr
           - file: part1_omezarr/02_ezzarr_quicklook
-          - file: part1_omezarr/03_ngio_container
-          - file: part1_omezarr/04_ngio_plates_wells
-          - file: part1_omezarr/05_labels_rois_tables
+          - file: part1_omezarr/03_ngio/01_container
+          - file: part1_omezarr/03_ngio/02_plates_wells
+          - file: part1_omezarr/03_ngio/03_labels_tables
           - file: part1_omezarr/cheatsheet
 
   - caption: Part 2 — Napari

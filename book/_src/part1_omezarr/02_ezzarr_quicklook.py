@@ -12,7 +12,7 @@
 # ---
 
 # %% [markdown]
-# # 02 · A quick look with ez-zarr
+# # 2 · A quick look with ez-zarr
 #
 # In this notebook you will:
 #
@@ -271,7 +271,7 @@ df
 # mask. Use the masking ROI table you loaded above to find where one object is.
 #
 # *(This is genuinely fiddly with ez-zarr alone — see how far you get, then look at how
-# [chapter 05](05_labels_rois_tables.ipynb) does it with `ngio`.)*
+# [chapter 3.3](03_ngio/03_labels_tables.ipynb) does it with `ngio`.)*
 
 # %% [markdown]
 # :::{admonition} Solution
@@ -296,7 +296,7 @@ df
 # It works, but notice what you had to do: read the whole array, look up the physical
 # coordinates, divide by the voxel size yourself, and hope you got the axis order right.
 #
-# In chapter 05, `ngio` does this in one line — `image.get_roi_as_numpy(roi)` — because
+# In chapter 3.3, `ngio` does this in one line — `image.get_roi_as_numpy(roi)` — because
 # the ROI carries its own units and the image knows its own pixel size. That is the
 # difference between the two libraries in a nutshell.
 # :::
@@ -304,4 +304,4 @@ df
 # %% [markdown]
 # ---
 #
-# **Next:** [03 · ngio containers, images and labels](03_ngio_container.ipynb).
+# **Next:** [3.1 · Containers, images and labels](03_ngio/01_container.ipynb).

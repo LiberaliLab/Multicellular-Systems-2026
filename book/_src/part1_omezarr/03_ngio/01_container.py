@@ -12,7 +12,7 @@
 # ---
 
 # %% [markdown]
-# # 03 · ngio containers, images and labels
+# # 3.1 · Containers, images and labels
 #
 # In this notebook you will:
 #
@@ -24,12 +24,12 @@
 #
 # `ez-zarr` was for looking. **`ngio`** is for working: it reads and writes, it
 # understands labels and tables, and it knows about plates. This chapter covers one
-# image; [chapter 04](04_ngio_plates_wells.ipynb) scales it to 384 wells.
+# image; [chapter 3.2](02_plates_wells.ipynb) scales it to 384 wells.
 #
 # The material follows the official
 # [ngio getting-started guide](https://biovisioncenter.github.io/ngio/stable/getting_started/1_ome_zarr_containers/).
 # We use **ngio 1.1.0** — code written for 0.5.x differs in a few places, listed in the
-# [cheat sheet](cheatsheet.md).
+# [cheat sheet](../cheatsheet.md).
 
 # %%
 import sys
@@ -40,7 +40,7 @@ import numpy as np
 
 import ngio
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 from mcs2026.config import PLATE_PATH
 
 image_path = PLATE_PATH / "B" / "03" / "0"
@@ -73,7 +73,7 @@ print("tables:         ", container.list_tables())
 # %% [markdown]
 # :::{note}
 # Opening is cheap because it only reads JSON. This matters when you open 384 of them in
-# [the next chapter](04_ngio_plates_wells.ipynb) — the cost there is one metadata read
+# [the next chapter](02_plates_wells.ipynb) — the cost there is one metadata read
 # per well, not one image read.
 # :::
 
@@ -273,7 +273,7 @@ ax.axis("off")
 # ### 3. Crop one object
 #
 # Pick an object id from the label image, find its bounding box, and show just that
-# object. *(Hint: chapter 05 has a much better way — try it the hard way first so you can
+# object. *(Hint: chapter 3.3 has a much better way — try it the hard way first so you can
 # appreciate the difference.)*
 
 # %% [markdown]
@@ -290,7 +290,7 @@ ax.axis("off")
 # plt.imshow(crop, cmap="gray"); plt.title(f"object {target_id}"); plt.axis("off")
 # ```
 #
-# This works but you did the bookkeeping. In chapter 05 the masking ROI table hands you
+# This works but you did the bookkeeping. In chapter 3.3 the masking ROI table hands you
 # the box directly — `masking_table.get_label(target_id)` — already in micrometres and
 # already valid at any pyramid level.
 # :::
@@ -298,4 +298,4 @@ ax.axis("off")
 # %% [markdown]
 # ---
 #
-# **Next:** [04 · Plates and wells](04_ngio_plates_wells.ipynb) — the same ideas, times 384.
+# **Next:** [3.2 · Plates and wells](02_plates_wells.ipynb) — the same ideas, times 384.

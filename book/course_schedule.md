@@ -6,9 +6,9 @@ your browser, Part 2 runs locally.
 | Day | Topic | Notebooks | Where |
 |---|---|---|---|
 | 02.10 | **Setup** — Euler account, environment, data access | — | Euler + laptop |
-| 02.10 | **What OME-Zarr is** and reading it with `ez-zarr` | Part 1 · 01–02 | Euler |
-| 02.10 | **`ngio`**: containers, images, labels | Part 1 · 03 | Euler |
-| 02.10 | **Plates and wells**: from 384 wells to one table | Part 1 · 04–05 | Euler |
+| 02.10 | **What OME-Zarr is** and reading it with `ez-zarr` | Part 1 · 1–2 | Euler |
+| 02.10 | **`ngio`**: containers, images, labels | Part 1 · 3.1 | Euler |
+| 02.10 | **Plates and wells**: from 384 wells to one table | Part 1 · 3.2–3.3 | Euler |
 | Extra | **Napari**: looking at the data | Part 2 · 01–02 | Laptop |
 | 16.10 & 23.10 | **The experiment**: plate layout and the staining decoder | Part 3 · 00–01 | Euler |
 | 6.11 | **Quality control and normalisation** | Part 3 · 02 | Euler |
@@ -18,7 +18,7 @@ your browser, Part 2 runs locally.
 | Extra | **Integration** and group projects | Part 3 · 08, [Projects](projects.md) | Euler |
 
 ```{note}
-Every chapter ends with exercises. The solutions are on the page, hidden behind a
+Most chapters end with exercises. The solutions are on the page, hidden behind a
 dropdown — try the exercise before you open it.
 ```
 ```{note}

@@ -12,7 +12,7 @@
 # ---
 
 # %% [markdown]
-# # 05 · Labels, ROIs and feature tables
+# # 3.3 · Labels, ROIs and feature tables
 #
 # In this notebook you will:
 #
@@ -37,7 +37,7 @@ import pandas as pd
 
 import ngio
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 from mcs2026.config import PLATE_PATH
 
 container = ngio.open_ome_zarr_container(PLATE_PATH / "B" / "03" / "0")
@@ -103,7 +103,7 @@ ax.set_title(roi.get_name()); ax.axis("off")
 #
 # A masking ROI table is indexed by **label id**, so it answers "where is object 42?"
 # directly. This is the thing that made the last exercise of
-# [chapter 02](02_ezzarr_quicklook.ipynb) awkward.
+# [chapter 2](../02_ezzarr_quicklook.ipynb) awkward.
 
 # %%
 masking_names = container.list_tables(filter_types="masking_roi_table")
@@ -175,7 +175,7 @@ print("anndata:", type(feature_table.anndata).__name__, feature_table.anndata.sh
 # The **AnnData** view is the bridge to Part 3. `X` holds the measurements, `obs` the
 # per-object metadata — the same structure the 733,556-cell table uses. Aggregate one of
 # these per well across a plate with `concatenate_image_tables`
-# ([chapter 04](04_ngio_plates_wells.ipynb)) and you have built the Part 3 dataset.
+# ([chapter 3.2](02_plates_wells.ipynb)) and you have built the Part 3 dataset.
 # :::
 
 # %% [markdown]
@@ -374,7 +374,7 @@ my_features
 # That is Part 1. You can now open an OME-Zarr, navigate a plate, read and write labels
 # and tables, and aggregate measurements across a screen.
 #
-# **Next:** [Part 2 — Napari](../part2_napari/intro.md), to look at the same data with
+# **Next:** [Part 2 — Napari](../../part2_napari/intro.md), to look at the same data with
 # your own eyes. Or jump to
-# [Part 3](../part3_analysis/intro.md), which starts from a table built exactly the way
-# [chapter 04](04_ngio_plates_wells.ipynb) built one.
+# [Part 3](../../part3_analysis/intro.md), which starts from a table built exactly the way
+# [chapter 3.2](02_plates_wells.ipynb) built one.

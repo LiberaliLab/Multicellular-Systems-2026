@@ -48,7 +48,7 @@ and it only catches cells at a field edge, not these.
 ## 3. From a number back to a picture
 
 Pick an object id you flagged above. In a notebook, using
-[Part 1 chapter 05](../part1_omezarr/05_labels_rois_tables.ipynb), look up its row in the
+[Part 1 chapter 3.3](../part1_omezarr/03_ngio/03_labels_tables.ipynb), look up its row in the
 feature table. Is it an outlier in area or intensity?
 
 Then do it the other way: find the largest object in the feature table, and go look at it

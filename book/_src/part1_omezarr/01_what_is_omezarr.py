@@ -12,11 +12,11 @@
 # ---
 
 # %% [markdown]
-# # 01 · What OME-Zarr is
+# # 1 · What OME-Zarr is
 #
 # In this notebook you will:
 #
-# - look at an OME-Zarr **as directories on disk**, before any library hides it
+# - look at an OME-Zarr **as directories on disk**
 # - read the metadata that makes it an image rather than a pile of files
 # - understand chunks, and why a 100 GB image opens instantly
 # - understand the multiscale pyramid, and how to choose a level
@@ -95,6 +95,16 @@ show_tree(PLATE_PATH)
 #
 # So the path `B/03/0` means **row B, column 3, image 0** — the addressing you will use
 # for the rest of Part 1.
+#
+# ```{image} ../images/zarr_hierarchy_light.svg
+# :class: only-light
+# :alt: A 384-well plate map with well B/03 highlighted, next to the matching directory tree plate.zarr/B/03/0 containing pyramid levels, labels and tables.
+# ```
+#
+# ```{image} ../images/zarr_hierarchy_dark.svg
+# :class: only-dark
+# :alt: A 384-well plate map with well B/03 highlighted, next to the matching directory tree plate.zarr/B/03/0 containing pyramid levels, labels and tables.
+# ```
 
 # %%
 plate_metadata = json.loads((PLATE_PATH / ".zattrs").read_text())
@@ -102,7 +112,7 @@ plate_meta = plate_metadata["plate"]
 print("rows:       ", [r["name"] for r in plate_meta["rows"]][:8], "...")
 print("columns:    ", [c["name"] for c in plate_meta["columns"]][:8], "...")
 print("wells:      ", len(plate_meta["wells"]))
-print("acquisitions:", plate.get("acquisitions", "none declared"))
+print("acquisitions:", plate_meta.get("acquisitions", "none declared"))
 
 # %% [markdown]
 # ## Inside one image
@@ -130,6 +140,16 @@ for dataset in multiscale["datasets"]:
 #
 # This is what makes the format usable: to draw a thumbnail you read the smallest level,
 # not the largest one downsampled.
+#
+# ```{image} ../images/zarr_pyramid_light.svg
+# :class: only-light
+# :alt: Four nested squares showing pyramid levels 0 to 3, each labelled with its pixel dimensions and micrometres per pixel, halving at every step.
+# ```
+#
+# ```{image} ../images/zarr_pyramid_dark.svg
+# :class: only-dark
+# :alt: Four nested squares showing pyramid levels 0 to 3, each labelled with its pixel dimensions and micrometres per pixel, halving at every step.
+# ```
 
 # %%
 channels = image_metadata.get("omero", {}).get("channels", [])
@@ -168,6 +188,17 @@ if chunk_files:
 # handful of small files, not the whole array — whether the store is on this disk, on a
 # network filesystem, or in an S3 bucket.
 #
+#
+# ```{image} ../images/zarr_chunks_light.svg
+# :class: only-light
+# :alt: A pyramid level drawn as a grid of chunk files, with a dashed read window covering four of the forty chunks.
+# ```
+#
+# ```{image} ../images/zarr_chunks_dark.svg
+# :class: only-dark
+# :alt: A pyramid level drawn as a grid of chunk files, with a dashed read window covering four of the forty chunks.
+# ```
+#
 # Chunk shape is therefore a real design decision. Chunks that are too small mean a lot
 # of file overhead; too large and every small read pulls in data you do not want.
 
@@ -205,79 +236,4 @@ if tables_path.exists():
 # %% [markdown]
 # ---
 #
-# ## Exercises
-#
-# ### 1. How much does the pyramid cost?
-#
-# Add up the size of every pyramid level. A pyramid that halves in x and y each step
-# stores 1 + 1/4 + 1/16 + … of the original. What is that sum, and what does it mean for
-# storage?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for dataset in multiscale["datasets"]:
-#     level = image_path / dataset["path"]
-#     total = sum(p.stat().st_size for p in level.rglob("*") if p.is_file())
-#     print(f"level {dataset['path']}: {total / 1e6:8.1f} MB")
-# ```
-#
-# The geometric series $1 + \frac14 + \frac1{16} + \dots$ converges to $\frac43$, so a
-# complete pyramid costs about **33% more** than the full-resolution image alone. That is
-# the price of being able to open the image at any zoom instantly — and it is cheap.
-# :::
-
-# %% [markdown]
-# ### 2. Find the physical size of a pixel
-#
-# Using the `scale` values, what is one pixel in micrometres at level 0? At level 2? Why
-# does the first number in `scale` not change?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for dataset in multiscale["datasets"]:
-#     scale = dataset["coordinateTransformations"][0]["scale"]
-#     print(dataset["path"], dict(zip([a["name"] for a in multiscale["axes"]], scale)))
-# ```
-#
-# The `x` and `y` scales double at each level, because each level has half as many pixels
-# covering the same physical distance. The channel axis (`c`) has a scale of 1 everywhere
-# — it is not a spatial axis, so downsampling does not apply to it. The `z` scale is also
-# usually left alone, since the pyramid is normally built in x and y only.
-# :::
-
-# %% [markdown]
-# ### 3. Which chunks would you read?
-#
-# Given the array shape and chunk shape above, how many chunks does a 512 × 512 window in
-# the middle of the image touch? How many would you read to display the whole well as a
-# 1,000-pixel-wide thumbnail from level 0 — and from the smallest level?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# import math
-# cy, cx = chunks[-2], chunks[-1]
-# print("512x512 window touches at most",
-#       (math.ceil(512 / cy) + 1) * (math.ceil(512 / cx) + 1), "chunks")
-#
-# ny, nx = shape[-2], shape[-1]
-# print("whole image at level 0:", math.ceil(ny / cy) * math.ceil(nx / cx), "chunks")
-# ```
-#
-# A small window touches a handful. The whole image at level 0 touches thousands — which
-# is exactly the situation the pyramid exists to avoid. For a thumbnail you read the
-# smallest level instead, where the entire well may be one or two chunks.
-# :::
-
-# %% [markdown]
-# ---
-#
-# **Next:** [02 · A quick look with ez-zarr](02_ezzarr_quicklook.ipynb).
+# **Next:** [2 · A quick look with ez-zarr](02_ezzarr_quicklook.ipynb).
