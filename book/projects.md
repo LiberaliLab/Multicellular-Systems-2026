@@ -5,11 +5,19 @@ and present what you found in ten minutes.
 
 ## How it works
 
-1. **You will be assigned a group** .
+1. **You will be assigned a group.**
 2. **Write down the question first**, in one sentence, before any code. If you cannot
    state it in a sentence, the analysis will not have a conclusion either.
-3. **Sketch the steps** as bullet points, then make your notebook's sections match them.
-4. **Present**
+3. **Start from the skeleton.** [11 · Your turn](part3_analysis/11_your_turn.ipynb) is the
+   five-step template — set `THEME` to your own panel and every cell still runs. Get a
+   complete, honest analysis end to end first, then go deeper where it is interesting.
+4. **Present.**
+
+```{note}
+The worked solutions are in [Part 4](part4_final_solutions/intro.md). Do your own analysis
+first — reading a solution before attempting the question is the fastest way to learn
+nothing.
+```
 
 ## The groups
 

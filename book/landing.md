@@ -7,7 +7,7 @@ This website hosts the material for the hands-on image-analysis sessions of
 
 **Edition: Autumn 2026**
 
-The course has three parts:
+The course has three taught parts, plus the worked solutions:
 
 ::::{grid} 1 1 3 3
 :gutter: 3
@@ -33,10 +33,25 @@ Runs on **your laptop**
 :::{grid-item-card} Part 3 — Analysis
 :link: part3_analysis/intro
 :link-type: doc
-734,000 cells, 18 perturbations, 4 timepoints. Signaling, cell mechanics,
-metabolism and organelles, one topic per group. What will be presented at the end of the course!
+734,000 cells, 18 perturbations, 4 timepoints. From an unnamed feature table to an
+annotated, embedded, normalised object — then your group's own analysis, which is what you
+present at the end of the course.
 +++
 Runs on **Euler**
+:::
+::::
+
+::::{grid} 1 1 1 1
+:gutter: 3
+
+:::{grid-item-card} Part 4 — Solutions
+:link: part4_final_solutions/intro
+:link-type: doc
+The worked answers: one complete analysis of the whole dataset — conditions, treatments,
+embeddings, trajectories and proportions — then one chapter per theme. Read it after your
+own attempt, not before.
++++
+Released **after the group work**
 :::
 ::::
 
@@ -46,37 +61,42 @@ Part 3 works on a **4i multiplexed immunofluorescence screen** of HNES1 human na
 embryonic stem cells: one 384-well plate, **18 perturbations × 4 timepoints**, imaged
 over 18 staining rounds and quantified into **733,556 cells × 4,464 features**.
 
-Part 3 runs in three stages:
+Part 3 runs in two stages — preparing the data, then learning every method on the two
+control conditions — and then hands the question over to you.
+
 ::::{grid} 1 1 3 3
 :gutter: 3
 
-:::{grid-item-card} Stage 1 — Data clean-up and normalisation
+:::{grid-item-card} Stage 1 — Preparing the data
 :link: part3_analysis/1_preparation/intro
 :link-type: doc
-You will not be handed a tidy table. The feature columns are named by *channel and
-imaging round*, and have to be matched to antibody solution.
-Normalization to controls also have to be applied correctly.
+You will not be handed a tidy table. The feature columns are named by *channel and imaging
+round*, and have to be matched back to the antibody that was actually used. Then the
+redundant columns go, the one failed well goes, everything is normalised to the controls,
+and it is packed into a single object.
 +++
-Dont worry the notebooks help you go through all of this
+Steps 1–19 · notebooks 00 to 04
 :::
 
-:::{grid-item-card} Stage 2 — Group analysis basics
-:link: part3_analysis/2_themes/intro
+:::{grid-item-card} Stage 2 — The toolkit, on the controls
+:link: part3_analysis/2_controls/intro
 :link-type: doc
-Here we will divide into topics by groups and we will go through the notebooks for each topic. This will teach you the basics that we expect from the group analysis and will hopefully set you in the correct direction.
+PCA, UMAP, cell-type annotation, PAGA and diffusion maps — all learned on DMSO and PBS,
+where nothing should be happening. A method that appears to find something there has told
+you about itself. Small enough to use every cell.
 +++
-Part 3 Notebooks - from 03 signaling to 06 organelles
+Notebooks 05 to 10
 :::
 
-:::{grid-item-card} Stage 3 — Group analysis and further examples
-:link: part3_analysis/3_going_further/intro
+:::{grid-item-card} Your turn
+:link: part3_analysis/11_your_turn
 :link-type: doc
-Here you have your own time, with our supervision to explore the data and find new effects.
+The skeleton for your group's analysis: state the question, subset to your panel, look,
+test at the well level, make one figure someone else can read. This is what you present.
 +++
-Dont hesitate to ask and look through Part 3 notebooks 07_ and 08_
+Notebook 11
 :::
 ::::
-
 
 ## Before the first session
 

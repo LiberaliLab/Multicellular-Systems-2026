@@ -139,6 +139,34 @@ def test_every_panel_resolves_completely(var):
     assert not incomplete, f"panels missing markers: {incomplete}"
 
 
+def test_identity_panel_is_the_eight_lineage_markers(var):
+    """Every embedding in Stage 2 is built on this panel, so lock its membership."""
+    assert panels.PANELS["identity"] == (
+        "Oct4", "Nanog", "Sox2", "GATA3", "GATA6", "PDGFRa", "GATA4", "SOX17")
+    columns = panels.resolve_panel(var, "identity", verbose=False)
+    assert len(columns) == 8, columns
+    assert set(var.loc[columns, "marker"]) == set(panels.PANELS["identity"])
+
+
+def test_pdgfra_resolves_to_the_stain_that_worked(var):
+    """PDGFRa was stained twice; one of the two is in FAILED_MARKERS.
+
+    Indexing by marker name alone would take whichever column came first, which
+    is the dead one. This is the case the `failed` flag exists for.
+    """
+    both = var[(var["marker"] == "PDGFRa") & (var["statistic"] == "mean_intensity")
+               & (var["family"] == "Intensity")]
+    assert len(both) == 2, "expected PDGFRa in two rounds"
+    assert set(both["failed"]) == {True, False}, "expected exactly one of them to have failed"
+
+    chosen = panels.resolve_panel(var, "identity", verbose=False)
+    pdgfra = var.loc[[c for c in chosen if var.loc[c, "marker"] == "PDGFRa"]]
+    assert len(pdgfra) == 1
+    assert not pdgfra["failed"].iloc[0]
+    assert pdgfra["round"].iloc[0] == 18
+    assert pdgfra["channel"].iloc[0] == "FITC"
+
+
 def test_panels_deliberately_overlap():
     """Calreticulin is ER and metabolism; p-S6 is signaling and metabolism."""
     assert "Calreticulin" in panels.PANELS["metabolism"]

@@ -38,12 +38,14 @@ def execute(path: Path, kernel: str | None, timeout: int) -> bool:
     try:
         client.execute()
     except CellExecutionError as error:
-        print(f"  FAILED {path}\n    {str(error).splitlines()[-1]}")
+        # Do NOT write. A half-executed notebook would replace committed outputs
+        # with a traceback, and the site ships whatever is in the file.
+        print(f"  FAILED {path}  (left unchanged)\n    {str(error).splitlines()[-1]}")
         return False
-    finally:
-        if declared is not None:
-            notebook.metadata["kernelspec"] = declared
-        nbformat.write(notebook, path)
+
+    if declared is not None:
+        notebook.metadata["kernelspec"] = declared
+    nbformat.write(notebook, path)
     print(f"  ok     {path}")
     return True
 

@@ -49,7 +49,7 @@ Each channel is its own layer, so set each one separately:
 4. set **blending** to `additive` on every layer above the bottom one
 
 Now toggle each layer's eye icon in turn. Which structures are in which channel? Look up
-the round each marker was imaged in — [Part 3 chapter 00](../part3_analysis/1_preparation/00_experiment_and_layout.ipynb)
+the round each marker was imaged in — [Part 3 chapter 00](../part3_analysis/1_preparation/00_what_you_are_given.ipynb)
 built exactly that table.
 
 ## Segmentations

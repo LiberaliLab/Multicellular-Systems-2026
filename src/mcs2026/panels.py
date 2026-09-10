@@ -34,8 +34,15 @@ PANELS: dict[str, tuple[str, ...]] = {
         "Pmp70", "Mitochondria",  # peroxisome, mitochondrion
         "LaminA", "LaminB1",      # nuclear envelope, shared with mechanics
     ),
+    # Pluripotency, trophectoderm, and four primitive-endoderm markers. This is the
+    # panel every embedding in Stage 2 is built on -- see chapter 07 for why eight
+    # lineage markers beat all 38.
+    #
+    # PDGFRa was stained twice: round 0 in Cy5, which failed, and round 18 in FITC,
+    # which did not. `resolve_panel(drop_failed=True)` picks the round-18 column;
+    # indexing by marker name alone would take whichever came first.
     "identity": (
-        "Oct4", "Nanog", "Sox2", "GATA3", "GATA4", "GATA6", "SOX17",
+        "Oct4", "Nanog", "Sox2", "GATA3", "GATA6", "PDGFRa", "GATA4", "SOX17",
     ),
     "cell_cycle": ("CyclinA2", "p21", "Ki67"),
 }
