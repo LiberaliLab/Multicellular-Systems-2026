@@ -41,7 +41,7 @@ cells; a boundary that is too loose pulls in background and lowers every mean in
 measured inside it.
 
 This is what the `is_border_external` flag in
-[Part 3 chapter 02](../part3_analysis/1_preparation/02_qc_and_normalisation.ipynb) is doing at scale —
+[Part 3 chapter 02](../part3_analysis/1_preparation/02_quality_control.ipynb) is doing at scale —
 and it only catches cells at a field edge, not these.
 ```
 

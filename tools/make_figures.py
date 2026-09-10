@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate the explanatory diagrams for Part 1, chapter 1.
+"""Generate the explanatory diagrams for Parts 1 and 3.
 
 Standard library only -- no matplotlib, no network. Each figure is written in a
 light and a dark variant; the book shows the right one with the theme's
@@ -217,10 +217,193 @@ def fig_hierarchy(c) -> str:
     return svg(W, H, b, c)
 
 
+# --------------------------------------------------------------------------
+# figure 4 — the anatomy of the feature table
+# --------------------------------------------------------------------------
+def fig_table_anatomy(c) -> str:
+    W, H = 880, 462
+    b = [text(48, 40, "What you are given", fill=c["fg"], size=17, weight=600),
+         text(48, 63, "one AnnData object: a matrix, a row table, and a column table",
+              fill=c["muted"], size=13)]
+
+    ox, oy = 48, 162                 # obs block
+    xw, xh = 380, 210                # X block
+    xx = ox + 172 + 18
+    vy = oy - 46                     # var block sits above X
+
+    # --- obs (row annotation) ---
+    b.append(rect(ox, oy, 172, xh, c["panel"], c["panel_edge"], rx=5))
+    b.append(text(ox + 10, oy - 10, "obs — one row per cell", fill=c["fg"], size=12, weight=600))
+    obs_cols = ["well_name", "condition", "timepoint_h", "ROI", "label",
+                "is_border_external", "…"]
+    for i, name in enumerate(obs_cols):
+        b.append(text(ox + 12, oy + 26 + i * 25, name, fill=c["muted"], size=11, mono=True))
+    b.append(text(ox + 10, oy + xh + 20, "733,556 rows × 12", fill=c["muted"], size=11, mono=True))
+
+    # --- var (column annotation) — the empty one ---
+    b.append(rect(xx, vy - 26, xw, 30, c["warm_soft"], c["warm"], rx=5, sw=1.8))
+    b.append(text(xx + 10, vy - 6, "var — one row per feature", fill=c["warm"],
+                  size=12, weight=600))
+    b.append(text(xx + xw - 10, vy - 6, "4,464 names and NOTHING ELSE",
+                  fill=c["warm"], size=11.5, weight=600, anchor="end", mono=True))
+
+    # --- X ---
+    b.append(rect(xx, oy, xw, xh, c["accent_soft"], c["accent"], rx=5, sw=1.8))
+    b.append(text(xx + xw / 2, oy + xh / 2 - 14, "X", fill=c["accent"], size=30,
+                  weight=700, anchor="middle", mono=True))
+    b.append(text(xx + xw / 2, oy + xh / 2 + 14, "733,556 × 4,464   float32",
+                  fill=c["fg"], size=12.5, anchor="middle", mono=True))
+    b.append(text(xx + xw / 2, oy + xh / 2 + 36, "13.1 GB dense",
+                  fill=c["muted"], size=12, anchor="middle", mono=True))
+
+    # --- what is missing ---
+    nx = xx + xw + 26
+    b.append(text(nx, oy + 12, "no layers", fill=c["muted"], size=11.5, mono=True))
+    b.append(text(nx, oy + 34, "no obsm", fill=c["muted"], size=11.5, mono=True))
+    b.append(text(nx, oy + 56, "no uns", fill=c["muted"], size=11.5, mono=True))
+    b.append(text(nx, oy + 78, "no var", fill=c["warm"], size=11.5, weight=600, mono=True))
+    b.append(text(nx, oy + 100, "columns", fill=c["warm"], size=11.5, weight=600, mono=True))
+
+    b.append(text(48, H - 44,
+                  "A column name says the channel and the imaging round — never the antibody.",
+                  fill=c["fg"], size=13))
+    b.append(text(48, H - 22,
+                  "Filling that empty var table is what Steps 7 to 9 do.",
+                  fill=c["muted"], size=12.5))
+    return svg(W, H, b, c)
+
+
+# --------------------------------------------------------------------------
+# figure 5 — renaming a feature with its marker
+# --------------------------------------------------------------------------
+def fig_rename(c) -> str:
+    W, H = 880, 412
+    b = [text(48, 40, "Renaming a feature with its marker", fill=c["fg"], size=17, weight=600),
+         text(48, 63, "the column name carries the channel and the round; the sheet turns "
+                      "those into an antibody", fill=c["muted"], size=13)]
+
+    # --- the raw column name, split into parts ---
+    parts = [("cells_", c["muted"], 62), ("Intensity_", c["fg"], 92),
+             ("mean_intensity_", c["fg"], 136), ("Texas Red", c["accent"], 92),
+             ("_", c["muted"], 12), ("0", c["accent"], 14)]
+    x, y = 62, 122
+    b.append(rect(48, y - 26, W - 96, 42, c["panel"], c["panel_edge"], rx=5))
+    for label, colour, w in parts:
+        weight = 700 if colour == c["accent"] else 400
+        b.append(text(x, y, label, fill=colour, size=14, mono=True, weight=weight))
+        x += w
+    b.append(text(62, y + 30, "family", fill=c["muted"], size=10.5, mono=True))
+    b.append(text(216, y + 30, "statistic", fill=c["muted"], size=10.5, mono=True))
+    b.append(text(352, y + 30, "channel", fill=c["accent"], size=10.5, weight=600, mono=True))
+    b.append(text(452, y + 30, "round", fill=c["accent"], size=10.5, weight=600, mono=True))
+
+    # --- arrow down ---
+    b.append(line(200, y + 48, 200, y + 78, c["muted"], sw=1.4, marker=True))
+    b.append(text(214, y + 70, "look up (channel, round) in the staining sheet",
+                  fill=c["muted"], size=12))
+
+    # --- the sheet row ---
+    ty = y + 108
+    b.append(rect(48, ty, W - 96, 74, c["panel"], c["panel_edge"], rx=5))
+    heads = [("round", 66), ("channel", 150), ("marker", 300), ("threshold", 500), ("failed", 640)]
+    for label, hx in heads:
+        b.append(text(hx, ty + 24, label, fill=c["muted"], size=11, weight=600, mono=True))
+    row = [("0", 66), ("Texas Red", 150), ("Foxo3a", 300), ("500", 500), ("no", 640)]
+    for label, hx in row:
+        hot = label in ("Texas Red", "Foxo3a", "0")
+        b.append(text(hx, ty + 52, label, fill=c["accent"] if hot else c["fg"],
+                      size=13, weight=700 if hot else 400, mono=True))
+
+    # --- arrow down to the result ---
+    b.append(line(200, ty + 92, 200, ty + 118, c["muted"], sw=1.4, marker=True))
+    ry = ty + 148
+    b.append(rect(48, ry - 24, 470, 40, c["accent_soft"], c["accent"], rx=5, sw=1.8))
+    b.append(text(64, ry + 2, "var['marker'] = 'Foxo3a'", fill=c["accent"], size=14,
+                  weight=700, mono=True))
+    b.append(text(300, ry + 2, "var['theme'] = 'signaling'", fill=c["fg"], size=13, mono=True))
+    b.append(text(544, ry + 2, "3,654 of 4,464 columns get a marker this way",
+                  fill=c["muted"], size=11.5))
+    return svg(W, H, b, c)
+
+
+# --------------------------------------------------------------------------
+# figure 6 — what Stage 1 hands over (the answer to figure 4)
+# --------------------------------------------------------------------------
+def fig_clean_object(c) -> str:
+    W, H = 880, 470
+    b = [text(48, 40, "What Stage 1 hands over", fill=c["fg"], size=17, weight=600),
+         text(48, 63, "mcs2026_clean.h5ad — the same object, with every slot filled in",
+              fill=c["muted"], size=13)]
+
+    ox, oy = 48, 168
+    ow, oh = 172, 196
+    xx = ox + ow + 18
+    xw, xh = 340, 150
+    ux = xx + xw + 26
+    uw = W - ux - 48
+
+    # --- obs ---
+    b.append(rect(ox, oy, ow, oh, c["panel"], c["panel_edge"], rx=5))
+    b.append(text(ox + 10, oy - 10, "obs — one row per cell", fill=c["fg"], size=12, weight=600))
+    for i, name in enumerate(["well", "condition", "timepoint_h",
+                              "replicate", "area", "dapi", "…"]):
+        new = name in {"replicate", "area", "dapi"}
+        weight = 700 if new else 400
+        fill = c["accent"] if new else c["muted"]
+        b.append(text(ox + 12, oy + 26 + i * 24, name, fill=fill, size=11,
+                      weight=weight, mono=True))
+    b.append(text(ox + 10, oy + oh + 20, "~653,000 rows", fill=c["muted"], size=11, mono=True))
+
+    # --- var, now filled ---
+    b.append(rect(xx, oy - 36, xw, 30, c["accent_soft"], c["accent"], rx=5, sw=1.8))
+    b.append(text(xx + 10, oy - 16, "var", fill=c["accent"], size=12, weight=600))
+    b.append(text(xx + xw - 10, oy - 16, "marker · channel · round · theme",
+                  fill=c["accent"], size=11.5, weight=600, anchor="end", mono=True))
+
+    # --- X ---
+    b.append(rect(xx, oy, xw, xh, c["accent_soft"], c["accent"], rx=5, sw=1.8))
+    b.append(text(xx + xw / 2, oy + xh / 2 - 12, "X", fill=c["accent"], size=28,
+                  weight=700, anchor="middle", mono=True))
+    b.append(text(xx + xw / 2, oy + xh / 2 + 14, "~653,000 × 38   float32",
+                  fill=c["fg"], size=12.5, anchor="middle", mono=True))
+    b.append(text(xx + xw / 2, oy + xh / 2 + 36, "control-cell SDs, within timepoint",
+                  fill=c["muted"], size=11.5, anchor="middle"))
+
+    # --- layers ---
+    ly = oy + xh + 12
+    b.append(rect(xx, ly, xw, 34, c["panel"], c["panel_edge"], rx=5))
+    b.append(text(xx + 12, ly + 22, 'layers["raw"]', fill=c["fg"], size=11.5,
+                  weight=600, mono=True))
+    b.append(text(xx + xw - 12, ly + 22, "intensity as measured",
+                  fill=c["muted"], size=11, anchor="end"))
+
+    # --- uns ---
+    b.append(rect(ux, oy - 36, uw, oh + 82, c["warm_soft"], c["warm"], rx=5, sw=1.8))
+    b.append(text(ux + 12, oy - 16, 'uns["provenance"]', fill=c["warm"], size=12,
+                  weight=600, mono=True))
+    notes = ["built_by", "layout_workbook", "cells_removed", "wells_removed",
+             "features", "X", "layers_raw", "units"]
+    for i, name in enumerate(notes):
+        b.append(text(ux + 12, oy + 18 + i * 24, name, fill=c["fg"], size=11, mono=True))
+    b.append(text(ux + 12, oy + 18 + len(notes) * 24 + 6,
+                  "why, not just what", fill=c["warm"], size=11, style="italic"))
+
+    b.append(text(48, H - 44,
+                  "One read_h5ad, and every later chapter starts with no set-up.",
+                  fill=c["fg"], size=13))
+    b.append(text(48, H - 22,
+                  "The wide 2,587-column table stays on disk as mcs2026_slim.h5ad.",
+                  fill=c["muted"], size=12.5))
+    return svg(W, H, b, c)
+
+
 FIGURES = {
     "zarr_chunks": fig_chunks,
     "zarr_pyramid": fig_pyramid,
     "zarr_hierarchy": fig_hierarchy,
+    "feature_table_anatomy": fig_table_anatomy,
+    "feature_rename": fig_rename,
+    "clean_object": fig_clean_object,
 }
 
 

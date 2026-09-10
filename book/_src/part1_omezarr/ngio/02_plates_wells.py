@@ -167,7 +167,7 @@ frame.head()
 # :::{important}
 # **This is how the Part 3 dataset was made.** A feature table per well, concatenated
 # across the plate, then written out as AnnData. The 4,464 columns you decode in
-# [Part 3 chapter 01](../../part3_analysis/1_preparation/01_decode_and_slim.ipynb) came out of a call like
+# [Part 3 chapter 01](../../part3_analysis/1_preparation/01_columns_to_markers.ipynb) came out of a call like
 # the one above.
 #
 # There is a variant, `concatenate_image_tables_as`, which returns a specific table type
@@ -261,7 +261,7 @@ layout = [
 #
 # Empty border rows and columns are normal: edge wells evaporate faster, so they are
 # often left out deliberately. Compare this map with the one in
-# [Part 3 chapter 00](../../part3_analysis/1_preparation/00_experiment_and_layout.ipynb).
+# [Part 3 chapter 00](../../part3_analysis/1_preparation/00_what_you_are_given.ipynb).
 # :::
 
 # %% [markdown]
