@@ -35,6 +35,7 @@
 import sys
 from pathlib import Path
 
+import anndata as ad
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -75,8 +76,9 @@ lookup[["marker", "round", "channel", "intensity_threshold"]].sort_values("round
 # ## 2. Effects per condition
 #
 # Every value below is in **control-well standard deviations**: how far a condition sits
-# from the DMSO wells of the same timepoint, in units of how much two control wells
-# differ from each other.
+# from the DMSO wells, in units of how much two control wells differ from each other.
+# `effect_table` subtracts the controls explicitly, so what is left is the treatment and
+# not the controls' own development across the time course.
 
 # %%
 effects = analysis.effect_table(wells, markers, by_timepoint=False)
@@ -200,20 +202,18 @@ pd.concat(
 # their signaling" — a smaller question with a readable answer.
 
 # %%
-from sklearn.decomposition import PCA
-
 usable = wells[wells.condition != analysis.OUTLIER_CONDITION]
-matrix = usable[markers].fillna(0).values
-pca = PCA(n_components=4, random_state=0).fit(matrix)
-coords = pca.transform(matrix)
-print("variance explained:", pca.explained_variance_ratio_[:4].round(3))
+space = ad.AnnData(usable[markers].fillna(0).to_numpy(dtype="float32"))
+sc.pp.pca(space, n_comps=4, random_state=0)
+coords, variance = space.obsm["X_pca"], space.uns["pca"]["variance_ratio"]
+print("variance explained:", variance[:4].round(3))
 
 # %%
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
 timepoints = usable.timepoint.values
 scatter = axes[0].scatter(coords[:, 0], coords[:, 1], c=timepoints, cmap="viridis", s=28)
-axes[0].set(xlabel=f"PC1 ({pca.explained_variance_ratio_[0]:.0%})",
-            ylabel=f"PC2 ({pca.explained_variance_ratio_[1]:.0%})",
+axes[0].set(xlabel=f"PC1 ({variance[0]:.0%})",
+            ylabel=f"PC2 ({variance[1]:.0%})",
             title="Signaling space, coloured by timepoint")
 fig.colorbar(scatter, ax=axes[0], label="hours")
 
@@ -228,7 +228,8 @@ axes[1].legend(fontsize=7)
 fig.tight_layout()
 
 # %%
-loadings = pd.DataFrame(pca.components_[:2].T, index=markers, columns=["PC1", "PC2"])
+loadings = pd.DataFrame(space.varm["PCs"][:, :2], index=markers,
+                        columns=["PC1", "PC2"])
 loadings.reindex(loadings.PC1.abs().sort_values(ascending=False).index).round(2)
 
 # %% [markdown]

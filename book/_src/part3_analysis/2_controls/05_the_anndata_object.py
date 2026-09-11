@@ -203,7 +203,8 @@ print(cells.obs.dtypes.astype(str).to_string())
 # Same filter, two ways:
 
 # %%
-mask = cells.obs.condition.isin(["DMSO", "MK-2206"])
+# Keep one of the two vehicles. PBS then has no rows left -- which is the point.
+mask = cells.obs.condition == "DMSO"
 print(f"  AnnData subset   : {len(cells[mask].obs.condition.cat.categories)} categories")
 print(f"  DataFrame subset : {len(cells.obs[mask].condition.cat.categories)} categories")
 
@@ -340,7 +341,7 @@ pd.DataFrame([
 # :class: dropdown
 #
 # ```python
-# two = cells[cells.obs.condition.isin(["DMSO", "MK-2206"])]
+# two = cells[cells.obs.condition == "DMSO"]
 # print(two.obs.groupby("condition", observed=False).size().head(8))
 # ```
 #

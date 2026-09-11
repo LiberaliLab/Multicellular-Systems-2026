@@ -153,10 +153,10 @@ print(f"  60 and 84 h only: {late.n_obs:,} cells, "
 
 # %% [markdown]
 # :::{important}
-# **Keep DMSO.** Every value in `X` is expressed as a distance from the control cells of the
-# same timepoint, and every comparison you will make is against them. A subset without
-# controls cannot be re-normalised, cannot be compared, and cannot be plotted on a
-# meaningful axis.
+# **Keep the controls.** Every value in `X` is a distance from the control cells at the
+# *first* timepoint, and every comparison you will make is against controls at the matching
+# timepoint — `analysis.effect_table` subtracts them for you. A subset without controls
+# cannot be compared, cannot be re-normalised, and cannot be plotted on a meaningful axis.
 #
 # The same goes for timepoints: keep at least two, or you cannot say anything changed.
 # :::
@@ -445,7 +445,7 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # ### 2. Sketch the wide table, with and without a PCA
 #
 # Take `mcs2026_qc.h5ad`, sketch it straight, then sketch it again after
-# `PCA(n_components=50)`. How much do the two sketches overlap? Which markers are the
+# a 50-component `sc.pp.pca`. How much do the two sketches overlap? Which markers are the
 # cells they disagree about extreme in?
 
 # %% [markdown]
@@ -456,7 +456,8 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # wide = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"))
 # raw = np.log2(np.asarray(wide.X) + 1)
 # straight = analysis.sketch(raw, 8_000)
-# reduced = analysis.sketch(PCA(n_components=50, random_state=0).fit_transform(raw), 8_000)
+# space = ad.AnnData(raw); sc.pp.pca(space, n_comps=50, random_state=0)
+# reduced = analysis.sketch(space.obsm["X_pca"], 8_000)
 # print(f"overlap: {len(set(straight) & set(reduced)):,} of 8,000")
 # ```
 #

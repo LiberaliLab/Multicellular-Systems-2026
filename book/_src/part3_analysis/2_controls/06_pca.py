@@ -48,7 +48,6 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from scipy import stats
-from sklearn.decomposition import PCA
 
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 
@@ -70,22 +69,34 @@ print(f"  wells: {cells.obs.well.nunique()}   units: {cells.uns['provenance']['u
 # %% [markdown]
 # ## 1 · Fit the PCA
 #
-# `matrix` is what goes in: one row per cell, one column per marker, already centred and
-# scaled. Twenty components is far more than this data can support — the point of asking
+# What goes in is `X`: one row per cell, one column per marker, already centred and scaled
+# by Stage 1. Twenty components is far more than this data can support — the point of asking
 # for them is to see where they stop being worth anything.
+#
+# `sc.pp.pca` does not hand the result back. It writes it **into the object**, in three
+# slots, and knowing which is most of what there is to know about working in scanpy:
+#
+# | slot | shape | what it holds |
+# |---|---|---|
+# | `obsm["X_pca"]` | cells × components | where each cell landed |
+# | `varm["PCs"]` | markers × components | the loadings — how each marker builds each component |
+# | `uns["pca"]["variance_ratio"]` | components | how much of the variance each one explains |
+#
+# That is the reason to use it rather than `sklearn.decomposition.PCA`, which returns an
+# object you then have to remember to store. Here the result travels with the cells through
+# every subset, filter and write that follows.
 
-# %% [markdown]
 # %%
 matrix = np.asarray(cells.X)
-pca = PCA(n_components=20, random_state=0).fit(matrix)
-coords = pca.transform(matrix)
-print(f"  {matrix.shape[0]:,} cells x {matrix.shape[1]} markers -> {coords.shape[1]} components")
+sc.pp.pca(cells, n_comps=20, random_state=0)
+coords = cells.obsm["X_pca"]
+print(f"  {cells.n_obs:,} cells x {cells.n_vars} markers -> {coords.shape[1]} components")
 
 # %% [markdown]
 # ## 2 · How much does each component explain?
 
 # %%
-variance = pd.Series(pca.explained_variance_ratio_, index=range(1, 21), name="share")
+variance = pd.Series(cells.uns["pca"]["variance_ratio"], index=range(1, 21), name="share")
 fig, axes = plt.subplots(1, 2, figsize=(11, 3.2))
 axes[0].bar(variance.index, 100 * variance.values, color="0.45")
 axes[0].set(xlabel="component", ylabel="% of variance", title="Scree")
@@ -100,31 +111,38 @@ print(f"  PC1 {100*variance.iloc[0]:.1f}%   PC1-2 {100*variance[:2].sum():.1f}% 
 # %% [markdown]
 # ## 3 · Colour it by what you already know
 #
-# A component is only interesting once you know what it distinguishes. Colour the same
-# points three ways.
+# A component is only interesting once you know what it distinguishes — so colour the same
+# points by things that were true before any of this was computed.
+#
+# This file holds **control cells only**, DMSO and PBS, nothing treated. So the three
+# things already known about every cell here are *when it was fixed*, *which vehicle it sat
+# in*, and *where on the plate it grew*. That is the whole list, and it is a useful
+# constraint: none of these three is a result, so anything one of them explains is
+# something your biology does not get to claim.
 
 # %%
 rng = np.random.default_rng(0)
 show = rng.choice(len(coords), size=min(12_000, len(coords)), replace=False)
+rows = cells.obs.row.astype(str).values
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
-sc_ = axes[0].scatter(coords[show, 0], coords[show, 1], c=timepoint[show],
-                      cmap="viridis", s=3, alpha=0.5)
-axes[0].set_title("timepoint"); fig.colorbar(sc_, ax=axes[0], shrink=0.8, label="hours")
 
-is_pma = condition == "Phorbol 12-myristate 13-acetate (PMA)"
-axes[1].scatter(coords[show][~is_pma[show], 0], coords[show][~is_pma[show], 1],
-                c="0.8", s=3, label="other 17")
-axes[1].scatter(coords[show][is_pma[show], 0], coords[show][is_pma[show], 1],
-                c="firebrick", s=3, label="PMA")
-axes[1].set_title("the outlier condition"); axes[1].legend(markerscale=4, fontsize=8)
+point = axes[0].scatter(coords[show, 0], coords[show, 1], c=timepoint[show],
+                        cmap="viridis", s=3, alpha=0.5)
+axes[0].set_title("timepoint"); fig.colorbar(point, ax=axes[0], shrink=0.8, label="hours")
 
-is_dmso = condition == "DMSO"
-axes[2].scatter(coords[show][~is_dmso[show], 0], coords[show][~is_dmso[show], 1],
-                c="0.8", s=3, label="treated")
-axes[2].scatter(coords[show][is_dmso[show], 0], coords[show][is_dmso[show], 1],
-                c="steelblue", s=3, label="DMSO")
-axes[2].set_title("the control"); axes[2].legend(markerscale=4, fontsize=8)
+for vehicle, colour in [("DMSO", "steelblue"), ("PBS", "darkorange")]:
+    mask = condition[show] == vehicle
+    axes[1].scatter(coords[show][mask, 0], coords[show][mask, 1],
+                    c=colour, s=3, alpha=0.5, label=f"{vehicle} ({mask.sum():,})")
+axes[1].set_title("the two vehicles"); axes[1].legend(markerscale=4, fontsize=8)
+
+for letter, colour in zip(sorted(set(rows)), plt.cm.tab10.colors):
+    mask = rows[show] == letter
+    axes[2].scatter(coords[show][mask, 0], coords[show][mask, 1],
+                    c=[colour], s=3, alpha=0.5, label=letter)
+axes[2].set_title("plate row"); axes[2].legend(markerscale=4, fontsize=8, ncol=2)
+
 for ax in axes:
     ax.set(xlabel=f"PC1 ({100*variance.iloc[0]:.0f}%)", ylabel=f"PC2 ({100*variance.iloc[1]:.0f}%)")
 fig.tight_layout()
@@ -134,12 +152,17 @@ fig.tight_layout()
 # **This is a diagnostic, not a result.** Three questions to ask of it, in order:
 #
 # 1. **Is the strongest separation the timepoint?** If so, PC1 is a clock, and any
-#    clustering built on it will return timepoints wearing the costume of cell types.
-# 2. **Does one condition sit on its own?** An outlier can capture a whole component to
-#    itself — which is why [Step 16](../1_preparation/03_normalisation.ipynb) looked for
-#    one before you got here.
-# 3. **Do the controls sit in the middle?** They should. Controls at one edge means the
-#    normalisation did not do what you think it did.
+#    clustering built on it will hand you back timepoints wearing the costume of cell types.
+# 2. **Do the two vehicles separate?** On this plate they do not — and that is *not*
+#    evidence that they are the same. [Chapter 07](07_umap.ipynb) measures the same pair at
+#    the well level and finds **11 of the 38 markers** more than a control SD apart, the
+#    largest by nearly two. A shift of two SDs is small next to the spread of single cells
+#    within one well, so the clouds overlap while the well means do not. An embedding is a
+#    picture of the largest variation, not a detector.
+# 3. **Does plate position show?** If one row sits apart from the rest, where a well grew is
+#    competing with what is in it. Chapter 07 puts a number on that too, and the answer is
+#    more interesting than the plot suggests: most of what looks like a row effect is really
+#    the *well* effect, since cells in one well are trivially in one row.
 #
 # What each of these *means* for the experiment is a question for the analysis, not for
 # the method. Answer them for your own subset before you plot anything else.
@@ -152,7 +175,7 @@ fig.tight_layout()
 # into a sentence you can say out loud.
 
 # %%
-loadings = pd.DataFrame(pca.components_[:3].T, index=names, columns=["PC1", "PC2", "PC3"])
+loadings = pd.DataFrame(cells.varm["PCs"][:, :3], index=names, columns=["PC1", "PC2", "PC3"])
 loadings.reindex(loadings.PC1.abs().sort_values(ascending=False).index).head(12).round(2)
 
 # %%
@@ -229,21 +252,18 @@ pd.DataFrame({
 # :::
 
 # %% [markdown]
-# ## 5 · Save the components
+# ## 5 · It is already saved
 #
 # Chapters 07 to 10 all build on this same PCA — a neighbour graph, a UMAP, a PAGA graph and
-# a diffusion map are computed *from* it rather than from the raw markers. Store it once.
+# a diffusion map are computed *from* it rather than from the raw markers.
 #
-# `obsm` is the slot for per-cell matrices: same number of rows as the object, any number
-# of columns. It travels with the cells through every later subset.
+# There is nothing to store: `sc.pp.pca` put the coordinates in `obsm["X_pca"]` and the
+# loadings in `varm["PCs"]` when it ran. All that is left is to record *what it was fitted
+# on*, which the object cannot work out for itself, and write the file.
 
 # %%
-cells.obsm["X_pca"] = coords
-cells.uns["pca"] = {
-    "variance_ratio": pca.explained_variance_ratio_,
-    "n_components": int(coords.shape[1]),
-    "features": "the 38 normalised markers",
-}
+cells.uns["pca"]["features"] = "the 38 normalised markers"
+print("  obsm:", list(cells.obsm), " varm:", list(cells.varm))
 cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
 cells
 
@@ -293,23 +313,28 @@ cells
 # :::
 
 # %% [markdown]
-# ### 3. Does PMA need removing?
+# ### 3. Does the outlier condition need removing?
 #
-# Fit the PCA again with PMA cells excluded. Does the variance explained by PC1 change?
-# Does PC2 start describing something new?
+# This one needs the **full** object, not the controls: the outlier flagged in
+# [Step 16](../1_preparation/03_normalisation.ipynb) is a treatment, and there are no
+# treatments in this file. Fit the PCA on `mcs2026_clean.h5ad` twice, with and without the
+# flagged cells. Does the variance explained by PC1 change? Does PC2 start describing
+# something new?
 
 # %% [markdown]
 # :::{admonition} Solution
 # :class: dropdown
 #
 # ```python
-# keep = ~is_pma
-# alt = PCA(n_components=10, random_state=0).fit(matrix[keep])
-# print("with PMA   :", pca.explained_variance_ratio_[:4].round(3))
-# print("without PMA:", alt.explained_variance_ratio_[:4].round(3))
+# full = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+# kept = full[~full.obs.is_outlier_condition].copy()
+# sc.pp.pca(full, n_comps=10, random_state=0)
+# sc.pp.pca(kept, n_comps=10, random_state=0)
+# print("with the outlier   :", full.uns["pca"]["variance_ratio"][:4].round(3))
+# print("without the outlier:", kept.uns["pca"]["variance_ratio"][:4].round(3))
 # ```
 #
-# Whether to exclude it depends on the question. Keep PMA when you want to know how far a
+# Whether to exclude it depends on the question. Keep it when you want to know how far a
 # strong perturbation can push these cells; drop it when you want to resolve structure
 # among the other seventeen. Both are defensible — doing it without noticing is not.
 # :::
