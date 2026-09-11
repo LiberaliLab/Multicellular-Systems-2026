@@ -16,28 +16,45 @@ from mcs2026 import analysis
 
 ad = pytest.importorskip("anndata")
 
-CONDITIONS = ["DMSO", "DrugA", "DrugB", "DrugC"]
+CONDITIONS = ["DMSO", "PBS", "DrugA", "DrugB"]
 TIMEPOINTS = [36, 48, 60, 84]
 MARKERS = [f"M{i}" for i in range(6)]
+
+#: A per-marker staining offset, identical at every timepoint. All four
+#: timepoints sit on one plate and are imaged in the same rounds, so this is
+#: what round-to-round drift actually looks like: a constant, not a trend.
+DRIFT = np.array([0.0, 60.0, -30.0, 20.0, 0.0, 10.0])
+#: M1 develops over 36-84 h in *every* condition, controls included. This is the
+#: time course, and normalisation must not remove it.
+TIME_COURSE = 1.5
+#: The two vehicles are not interchangeable -- on the real plate 11 of 38 markers
+#: separate them by more than a control SD. Here M2 does.
+VEHICLE_GAP = 12.0
+#: DrugA moves M0 and nothing else.
+DRUG_EFFECT = 30.0
 
 
 @pytest.fixture(scope="module")
 def plate():
     """A miniature plate: 4 conditions x 4 timepoints x 3 wells x 40 cells.
 
-    Timepoints carry a large offset so that anything failing to normalise
-    *within* timepoint shows up immediately; ``DrugA`` shifts M0 only.
+    It carries the three things the normalisation has to tell apart: a staining
+    drift that is an artefact, a time course that is the experiment, and a gap
+    between the two vehicles that must not become part of the unit.
     """
     rng = np.random.default_rng(0)
     rows, values = [], []
     for timepoint in TIMEPOINTS:
         for condition in CONDITIONS:
             for replicate in range(3):
-                well = f"{condition[:3]}{timepoint}{replicate}"
-                block = rng.normal(loc=100.0 + 40 * timepoint, scale=5.0,
-                                   size=(40, len(MARKERS)))
+                well = f"{condition}-{timepoint}-{replicate}"
+                centre = 100.0 + DRIFT
+                centre[1] += TIME_COURSE * (timepoint - TIMEPOINTS[0])
+                block = rng.normal(loc=centre, scale=4.0, size=(40, len(MARKERS)))
+                if condition == "PBS":
+                    block[:, 2] += VEHICLE_GAP
                 if condition == "DrugA":
-                    block[:, 0] += 60.0
+                    block[:, 0] += DRUG_EFFECT
                 values.append(block)
                 rows.extend(
                     {"well": well, "condition": condition, "timepoint_h": timepoint}
@@ -50,33 +67,55 @@ def plate():
     obs.index = obs.index.astype(str)
     data = ad.AnnData(X=np.vstack(values).astype("float32"), obs=obs)
     data.var_names = MARKERS
+    data.var["marker"] = [f"marker_{m}" for m in MARKERS]
     return data
+
+
+def controls_of(data):
+    return np.isin(data.obs.condition.values, ["DMSO", "PBS"])
+
+
+def timepoints_of(data):
+    return data.obs.timepoint_h.astype(int).values
 
 
 # --------------------------------------------------------------------------
 # normalise_cells
 # --------------------------------------------------------------------------
 
-def test_controls_centre_at_zero_within_each_timepoint(plate):
+def test_the_origin_is_the_first_timepoint(plate):
+    """Zero means "an untreated cell at the start", not "an untreated cell"."""
     normalised = analysis.normalise_cells(plate, MARKERS)
-    controls = plate.obs.condition.values == "DMSO"
-    timepoint = plate.obs.timepoint_h.astype(int).values
+    early = normalised[controls_of(plate) & (timepoints_of(plate) == TIMEPOINTS[0])]
+    assert np.abs(np.median(early, axis=0)).max() < 0.4
+
+
+def test_the_time_course_survives(plate):
+    """The whole point. Centring each timepoint on its own controls would put
+    every one of these at zero by construction, which in a time course is the
+    experiment thrown away."""
+    normalised = analysis.normalise_cells(plate, MARKERS)
+    controls, timepoint = controls_of(plate), timepoints_of(plate)
+
+    trace = [float(np.median(normalised[controls & (timepoint == v)], axis=0)[1])
+             for v in TIMEPOINTS]
+    assert trace == sorted(trace), trace
+    assert trace[-1] > 3.0, trace
+
+
+def test_staining_drift_does_not_survive(plate):
+    """A per-marker offset shared by every timepoint is an artefact, and goes.
+
+    DRIFT moves five markers by up to 60 units; only M1 is allowed to move with
+    time, so every other marker must sit flat across the whole course.
+    """
+    normalised = analysis.normalise_cells(plate, MARKERS)
+    controls, timepoint = controls_of(plate), timepoints_of(plate)
+    steady = [0, 2, 3, 4, 5]
 
     for value in TIMEPOINTS:
-        block = normalised[controls & (timepoint == value)]
-        assert np.allclose(block.mean(axis=0), 0, atol=1e-5)
-        assert np.allclose(block.std(axis=0, ddof=1), 1, atol=1e-5)
-
-
-def test_timepoint_offset_does_not_survive(plate):
-    """The raw values differ 15-fold across timepoints; the normalised must not."""
-    normalised = analysis.normalise_cells(plate, MARKERS)
-    timepoint = plate.obs.timepoint_h.astype(int).values
-
-    raw_spread = np.ptp([plate.X[timepoint == v].mean() for v in TIMEPOINTS])
-    normalised_spread = np.ptp([normalised[timepoint == v].mean() for v in TIMEPOINTS])
-    assert raw_spread > 1000
-    assert normalised_spread < 0.2
+        median = np.median(normalised[controls & (timepoint == value)], axis=0)
+        assert np.abs(median[steady]).max() < 1.0, (value, median)
 
 
 def test_the_planted_effect_is_recovered(plate):
@@ -84,8 +123,41 @@ def test_the_planted_effect_is_recovered(plate):
     treated = plate.obs.condition.values == "DrugA"
 
     shifts = normalised[treated].mean(axis=0)
-    assert shifts[0] > 8           # 60 units against a control SD of ~5
-    assert np.abs(shifts[1:]).max() < 0.5
+    assert shifts[0] > 4              # 30 units against a control spread of ~4
+    # M1 carries the time course and M2 the vehicle gap -- a DMSO-vehicle drug
+    # sits half a gap below zero on M2 by construction. M3-M5 carry nothing.
+    assert np.abs(shifts[[3, 4, 5]]).max() < 0.6
+
+
+def test_both_vehicles_place_the_origin(plate):
+    """Neither vehicle alone is zero; the origin sits between the two."""
+    normalised = analysis.normalise_cells(plate, MARKERS)
+    condition, timepoint = plate.obs.condition.values, timepoints_of(plate)
+    start = timepoint == TIMEPOINTS[0]
+
+    dmso = float(np.median(normalised[(condition == "DMSO") & start], axis=0)[2])
+    pbs = float(np.median(normalised[(condition == "PBS") & start], axis=0)[2])
+    assert dmso < -0.5 and pbs > 0.5, (dmso, pbs)
+    assert abs(dmso + pbs) < 0.4, (dmso, pbs)
+
+
+def test_the_vehicle_gap_does_not_inflate_the_unit(plate):
+    """Pooling two references that differ must not widen what counts as one.
+
+    The unit is the spread *within* a vehicle, so within either vehicle the
+    normalised values must still have a spread of about 1. Had the DMSO-PBS gap
+    been counted as spread, the unit would be wider and both would come out well
+    below 1 -- quietly shrinking every effect measured in them.
+    """
+    normalised = analysis.normalise_cells(plate, MARKERS)
+    dmso = plate.obs.condition.values == "DMSO"
+    pbs = plate.obs.condition.values == "PBS"
+
+    assert 0.8 < normalised[dmso][:, 2].std() < 1.3
+    assert 0.8 < normalised[pbs][:, 2].std() < 1.3
+    # and the gap itself survives, as a difference of several units
+    gap = np.median(normalised[pbs][:, 2]) - np.median(normalised[dmso][:, 2])
+    assert gap > 2.0, gap
 
 
 def test_output_is_finite_float32(plate):
@@ -97,16 +169,67 @@ def test_output_is_finite_float32(plate):
 def test_a_dead_column_becomes_zeros_not_infinities(plate):
     """A marker with no spread in the controls carries no information."""
     flat = plate.copy()
-    flat.X[:, 2] = 7.0
+    flat.X[:, 4] = 7.0
     normalised = analysis.normalise_cells(flat, MARKERS)
     assert np.isfinite(normalised).all()
-    assert np.allclose(normalised[:, 2], 0)
+    assert np.allclose(normalised[:, 4], 0)
 
 
-def test_a_group_without_controls_is_an_error(plate):
-    orphan = plate[plate.obs.condition != "DMSO"].copy()
-    with pytest.raises(ValueError, match="cannot scale a group without controls"):
+def test_one_vehicle_is_enough(plate):
+    """A plate with only DMSO still normalises, against DMSO alone."""
+    single = plate[plate.obs.condition != "PBS"].copy()
+    normalised = analysis.normalise_cells(single, MARKERS)
+    start = timepoints_of(single) == TIMEPOINTS[0]
+    controls = single.obs.condition.values == "DMSO"
+    assert np.abs(np.median(normalised[controls & start], axis=0)).max() < 0.4
+
+
+def test_no_control_cells_at_all_is_an_error(plate):
+    orphan = plate[~np.isin(plate.obs.condition, ["DMSO", "PBS"])].copy()
+    with pytest.raises(ValueError, match="cannot normalise without control cells"):
         analysis.normalise_cells(orphan, MARKERS)
+
+
+def test_controls_missing_from_the_first_timepoint_is_an_error(plate):
+    """The origin has to come from somewhere, and silence would be worse."""
+    late = plate[~(controls_of(plate) & (timepoints_of(plate) == TIMEPOINTS[0]))].copy()
+    with pytest.raises(ValueError, match="cannot place the origin"):
+        analysis.normalise_cells(late, MARKERS)
+
+
+# --------------------------------------------------------------------------
+# by_well
+# --------------------------------------------------------------------------
+
+def test_by_well_gives_one_row_per_well(plate):
+    wells = analysis.by_well(plate)
+    assert len(wells) == plate.obs.well.nunique()
+    assert list(wells.columns[:3]) == ["condition", "timepoint", "well"]
+    assert list(wells.columns[3:]) == MARKERS
+
+
+def test_by_well_matches_a_plain_groupby(plate):
+    """It reads one well at a time to stay small; the answer must be identical."""
+    frame = pd.DataFrame(np.asarray(plate.X), columns=MARKERS)
+    frame["condition"] = plate.obs.condition.astype(str).values
+    frame["timepoint"] = timepoints_of(plate)
+    frame["well"] = plate.obs.well.astype(str).values
+    expected = (frame.groupby(["condition", "timepoint", "well"], observed=True)
+                .mean().reset_index())
+
+    got = analysis.by_well(plate)
+    pd.testing.assert_frame_equal(got, expected, check_dtype=False, atol=1e-5)
+
+
+def test_by_well_can_rename_through_var(plate):
+    wells = analysis.by_well(plate, MARKERS[:2], name_by="marker")
+    assert list(wells.columns) == ["condition", "timepoint", "well",
+                                   "marker_M0", "marker_M1"]
+
+
+def test_by_well_rejects_a_column_that_is_not_there(plate):
+    with pytest.raises(KeyError, match="not in var"):
+        analysis.by_well(plate, ["M0", "nonexistent"])
 
 
 # --------------------------------------------------------------------------
@@ -275,3 +398,46 @@ def test_exclude_removes_a_nested_labels_borrowed_signal():
     assert adjusted["pairs"] > 0, "clumps too tight -- no cross-clump neighbours"
     assert naive["ratio"] > 1.3, naive              # looks like real structure
     assert adjusted["ratio"] < naive["ratio"] - 0.2, (naive, adjusted)
+
+
+# --------------------------------------------------------------------------
+# effect_table
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def drifting_wells():
+    """Well means where the controls develop over time and DrugA adds 2.0 on top.
+
+    This is what the clean object now looks like: the origin is fixed at the
+    first timepoint, so the controls are only at zero there.
+    """
+    rows = []
+    for timepoint in TIMEPOINTS:
+        drift = 0.5 * (timepoint - TIMEPOINTS[0]) / 12
+        for condition, extra in [("DMSO", 0.0), ("DrugA", 2.0)]:
+            for replicate in range(3):
+                rows.append({"condition": condition, "timepoint": timepoint,
+                             "well": f"{condition}{timepoint}{replicate}",
+                             "M0": drift + extra + 0.01 * replicate})
+    return pd.DataFrame(rows)
+
+
+def test_effect_table_subtracts_the_controls_own_drift(drifting_wells):
+    """A group mean would report the controls' development as a drug effect.
+
+    The planted effect is 2.0 at every timepoint. Without an explicit
+    subtraction the late timepoints would read 2.5, 3.0 and 4.0.
+    """
+    effects = analysis.effect_table(drifting_wells, ["M0"])
+    assert np.allclose(effects["M0"].values, 2.0, atol=1e-6), effects
+
+
+def test_effect_table_pooled_over_time_also_subtracts(drifting_wells):
+    effects = analysis.effect_table(drifting_wells, ["M0"], by_timepoint=False)
+    assert effects.loc["DrugA", "M0"] == pytest.approx(2.0, abs=1e-6)
+
+
+def test_effect_table_drops_the_control_row(drifting_wells):
+    for by_timepoint in (True, False):
+        effects = analysis.effect_table(drifting_wells, ["M0"], by_timepoint=by_timepoint)
+        assert "DMSO" not in effects.index.get_level_values(0)

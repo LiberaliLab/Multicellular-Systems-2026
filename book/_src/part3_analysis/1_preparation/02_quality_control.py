@@ -279,14 +279,24 @@ print(f"  wells  : {clean.obs.well.nunique()} remain")
 # %% [markdown]
 # ## Step 13 · Does plate position matter?
 #
-# Condition and plate position are confounded by design: each condition always sits in the
-# same rows. So a row-wise artefact would be indistinguishable from a treatment effect —
-# *except* in the control wells, which appear in every row at a fixed treatment. **DMSO is
-# the readout for plate position.**
+# The plate is laid out so that position and treatment *can* be told apart. **Each condition
+# is spread across three or four different rows**, so a row-wise artefact is not the same
+# shape as a treatment effect: it cuts across conditions instead of following one.
+#
+# That still leaves the controls as the cleanest readout, because their treatment is fixed.
+# They are not in every row — DMSO holds rows D, H, I and O, PBS holds B, L and M, seven of
+# fourteen between them — but within those rows anything that varies from row to row is the
+# plate rather than the biology.
+#
+# **Plate column is a different matter: it *is* the timepoint.** Columns 2–5 are all 36 h,
+# 8–11 are 48 h, 14–17 are 60 h, 20–23 are 84 h. A column-wise difference is the experiment
+# working, and correcting it away would delete the time course
+# ([chapter 03](03_normalisation.ipynb) turns on exactly this point). Row is the axis that
+# carries no design meaning, which is why row is the one worth checking.
 
 # %%
 marker_columns = analysis.marker_columns(clean.var)
-wells = analysis.well_means(clean, marker_columns)
+wells = analysis.by_well(clean, marker_columns, name_by="marker")
 names = [clean.var.loc[c, "marker"] for c in marker_columns]
 print(f"{len(wells)} wells x {len(marker_columns)} markers")
 wells.iloc[:4, :6]
@@ -307,6 +317,12 @@ axes[1].set(xticks=range(len(by_row)), xticklabels=by_row.index, yticks=[],
             ylabel="markers", xlabel="plate row", title="DMSO wells by row (centred)")
 fig.colorbar(im, ax=axes[1], shrink=0.8, label="log2 vs mean")
 fig.tight_layout()
+
+# %% [markdown]
+# **Why only DMSO, when there are two vehicles?** Because they sit in *disjoint* rows —
+# DMSO in D/H/I/O, PBS in B/L/M. Pool them and any real difference between the two vehicles
+# would arrive looking exactly like a row effect, since no row contains both. One vehicle at
+# a time is the only version of this plot that means anything.
 
 # %%
 print(f"median control-well SD: {control_variation.median():.3f} log2 "

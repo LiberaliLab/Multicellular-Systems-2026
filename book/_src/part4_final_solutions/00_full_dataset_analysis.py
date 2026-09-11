@@ -37,6 +37,7 @@
 import sys
 from pathlib import Path
 
+import anndata as ad
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -344,11 +345,9 @@ fig.colorbar(s, ax=axes, shrink=0.8, label="Oct4")
 # well level, where a point is an experiment rather than a cell:
 
 # %%
-from sklearn.decomposition import PCA
-
-well_pca = PCA(n_components=4, random_state=0)
-scores = well_pca.fit_transform(wells[names].fillna(0).values)
-frame = pd.DataFrame(scores[:, :2], columns=["PC1", "PC2"])
+space = ad.AnnData(wells[names].fillna(0).to_numpy(dtype="float32"))
+sc.pp.pca(space, n_comps=4, random_state=0)
+frame = pd.DataFrame(space.obsm["X_pca"][:, :2], columns=["PC1", "PC2"])
 frame["condition"] = wells.condition.values
 frame["timepoint"] = wells.timepoint.values
 
@@ -366,9 +365,9 @@ for name, colour in [("DMSO", "steelblue"),
                     edgecolor="black", linewidth=0.3, label=SHORT.get(name, name))
 axes[1].legend(fontsize=8); axes[1].set(title="the control and the outlier")
 
+share = space.uns["pca"]["variance_ratio"]
 for ax in axes:
-    ax.set(xlabel=f"PC1 ({100*well_pca.explained_variance_ratio_[0]:.0f}%)",
-           ylabel=f"PC2 ({100*well_pca.explained_variance_ratio_[1]:.0f}%)")
+    ax.set(xlabel=f"PC1 ({100 * share[0]:.0f}%)", ylabel=f"PC2 ({100 * share[1]:.0f}%)")
 fig.tight_layout()
 
 # %% [markdown]

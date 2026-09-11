@@ -31,6 +31,7 @@
 import sys
 from pathlib import Path
 
+import anndata as ad
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -58,7 +59,8 @@ lookup[["marker", "round", "channel"]].sort_values("round").reset_index(drop=Tru
 # %% [markdown]
 # ## Effects per condition
 #
-# In control-well standard deviations, against the DMSO wells of the same timepoint.
+# In control-well standard deviations, against the DMSO wells — pooled across
+# timepoints here, so the controls' own drift over 36–84 h cancels on both sides.
 # PMA is excluded throughout — [Step 16](../part3_analysis/1_preparation/03_normalisation.ipynb) showed it moves every marker by 4–11 SD, so
 # leaving it in would make every heatmap a picture of PMA.
 
@@ -111,19 +113,17 @@ ranked.head(12).round(3)
 # ## An embedding of this theme alone
 
 # %%
-from sklearn.decomposition import PCA
-
 usable = wells[wells.condition != analysis.OUTLIER_CONDITION]
-matrix = usable[markers].fillna(0).values
-pca = PCA(n_components=4, random_state=0).fit(matrix)
-coords = pca.transform(matrix)
-print("variance explained:", pca.explained_variance_ratio_[:4].round(3))
+space = ad.AnnData(usable[markers].fillna(0).to_numpy(dtype="float32"))
+sc.pp.pca(space, n_comps=4, random_state=0)
+coords, variance = space.obsm["X_pca"], space.uns["pca"]["variance_ratio"]
+print("variance explained:", variance[:4].round(3))
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
 scatter = axes[0].scatter(coords[:, 0], coords[:, 1], c=usable.timepoint.values,
                           cmap="viridis", s=28)
-axes[0].set(xlabel=f"PC1 ({pca.explained_variance_ratio_[0]:.0%})",
-            ylabel=f"PC2 ({pca.explained_variance_ratio_[1]:.0%})", title="by timepoint")
+axes[0].set(xlabel=f"PC1 ({variance[0]:.0%})",
+            ylabel=f"PC2 ({variance[1]:.0%})", title="by timepoint")
 fig.colorbar(scatter, ax=axes[0], label="hours")
 
 top = list(effects.abs().mean(axis=1).sort_values(ascending=False).head(3).index)
@@ -137,7 +137,8 @@ axes[1].legend(fontsize=7)
 fig.tight_layout()
 
 # %%
-loadings = pd.DataFrame(pca.components_[:2].T, index=markers, columns=["PC1", "PC2"])
+loadings = pd.DataFrame(space.varm["PCs"][:, :2], index=markers,
+                        columns=["PC1", "PC2"])
 loadings.reindex(loadings.PC1.abs().sort_values(ascending=False).index).round(2)
 
 # %% [markdown]

@@ -22,32 +22,58 @@ import pandas as pd
 from scipy import stats
 
 CONTROL = "DMSO"
+#: Both vehicles. ``normalise_cells`` references them together, because between
+#: them they cover seven plate rows rather than four. The effect tables further
+#: down still compare against ``CONTROL`` alone.
+CONTROLS = ("DMSO", "PBS")
 #: The condition that shifts every marker by 4-11 control SDs (see chapter 02).
 OUTLIER_CONDITION = "Phorbol 12-myristate 13-acetate (PMA)"
 
 
-def well_means(data, columns, *, name_by="marker") -> "pd.DataFrame":
-    """Collapse a cell-level AnnData to one row per well.
+def by_well(data, columns=None, *, name_by=None) -> "pd.DataFrame":
+    """Average per well: one row per condition x timepoint x well.
 
     The well is the replicate unit for every test in Part 3, so this is the
-    aggregation almost everything else starts from. Columns are renamed to their
-    marker, and the condition/timepoint/well keys are carried along.
+    aggregation almost everything else starts from. It does exactly one thing --
+    take the mean of what is in ``X`` -- because by the time Stage 2 opens the
+    clean object ``X`` already holds normalised values and there is nothing left
+    to decide. Normalisation happens once, to cells, in ``normalise_cells``.
+
+    ``columns`` defaults to every column. ``name_by`` renames them through
+    ``var``: chapter 02 passes ``"marker"``, because on the wide table the column
+    names are still channel-and-round strings.
 
     ``timepoint_h`` is an ordered categorical -- right for plotting, wrong for
     arithmetic, since pandas refuses to subtract categoricals. It is cast to int
     here so callers do not have to remember.
-    """
-    import numpy as np
 
-    frame = pd.DataFrame(
-        np.asarray(data[:, list(columns)].X),
-        columns=[data.var.loc[c, name_by] for c in columns],
-    )
-    frame["well"] = data.obs.well.astype(str).values
-    frame["condition"] = data.obs.condition.astype(str).values
-    frame["timepoint"] = data.obs.timepoint_h.astype(int).values
-    return (frame.groupby(["condition", "timepoint", "well"], observed=True)
-            .mean().reset_index())
+    It averages one well at a time rather than building one dense table. The
+    answer is 223 rows whatever you pass, but the input need not be small: the
+    wide plate is roughly 650,000 x 2,587, which is 6.8 GB dense before pandas
+    makes a copy of its own to group on.
+    """
+    names = list(data.var_names) if columns is None else list(columns)
+    positions = data.var_names.get_indexer(names)
+    if (positions < 0).any():
+        missing = [n for n, p in zip(names, positions) if p < 0]
+        raise KeyError(f"not in var: {missing[:5]}")
+    if name_by is not None:
+        names = [data.var.loc[c, name_by] for c in names]
+
+    keys = pd.DataFrame({
+        "condition": data.obs.condition.astype(str).values,
+        "timepoint": data.obs.timepoint_h.astype(int).values,
+        "well": data.obs.well.astype(str).values,
+    })
+    labels, blocks = [], []
+    for key, index in keys.groupby(list(keys.columns), observed=True).indices.items():
+        labels.append(key)
+        blocks.append(np.asarray(data.X[index])[:, positions].mean(axis=0))
+
+    frame = pd.DataFrame(np.vstack(blocks), columns=names)
+    for level, name in enumerate(keys.columns):
+        frame.insert(level, name, [k[level] for k in labels])
+    return frame.sort_values(list(keys.columns)).reset_index(drop=True)
 
 
 def marker_columns(var: pd.DataFrame, *, statistic: str = "mean_intensity") -> list[str]:
@@ -66,46 +92,80 @@ def normalise_cells(
     data,
     columns,
     *,
-    control: str = CONTROL,
+    controls=CONTROLS,
     by: str = "timepoint_h",
     condition_key: str = "condition",
 ) -> np.ndarray:
-    """``log2``, then centre and scale on the control cells of the same group.
+    """``log2``, put the origin at the first timepoint, take the unit from the plate.
 
-    This is Step 17 applied to single cells rather than to well means: every
-    value comes out as "this many control-*cell* standard deviations from the
-    controls of its own timepoint". Normalising within ``by`` matters because
-    the controls themselves drift across 36-84 h; pooling them would put early
-    cells below zero and late cells above it by construction.
+    The origin and the unit answer different questions, and they come from
+    different cells.
+
+    **Origin -- what counts as zero.** The median of the control cells at the
+    *first* timepoint. One fixed point, so zero means "an untreated cell at the
+    start of the experiment" and the controls' own development across 36-84 h
+    stays visible in the numbers. Centring each timepoint on its own controls
+    would instead define the control as zero at every timepoint: a moving origin
+    cannot show movement, and in a time course that erases the experiment.
+
+    One origin is enough because all four timepoints sit on the same plate and
+    are imaged in the same rounds. The round-to-round staining drift of Step 15
+    is therefore a single number per marker, shared by every timepoint, and
+    subtracting one constant removes it everywhere. A per-timepoint origin
+    removes that drift *and* the biology; this removes only the drift.
+
+    **Unit -- what counts as one.** 1.4826 times the median absolute deviation
+    of every control cell on the plate, taken about the median of its own
+    vehicle x timepoint group. Using the whole plate makes the estimate stable;
+    taking deviations about each group's own centre stops the drift, and the gap
+    between the two vehicles, from inflating it. That gap is real -- 11 of the 38
+    markers separate DMSO from PBS by more than a control SD -- so pooling the
+    two naively would widen the unit and quietly shrink every effect measured in
+    it.
+
+    Median and MAD rather than mean and SD: single-cell intensities have long
+    right tails, and debris and dying cells sit in them.
 
     A column whose control cells have no spread at all carries no information,
-    and is returned as zeros rather than as infinities.
+    and comes back as zeros rather than as infinities.
 
     Returns a dense ``float32`` array of ``(n_obs, len(columns))``.
     """
     raw = np.asarray(data[:, list(columns)].X, dtype="float64")
     logged = np.log2(raw + 1.0)
 
-    groups = np.asarray(data.obs[by].astype(str))
+    groups = np.asarray(data.obs[by].astype(int))
     conditions = np.asarray(data.obs[condition_key].astype(str))
-    out = np.zeros_like(logged)
-
-    for value in pd.unique(groups):
-        rows = groups == value
-        reference = logged[rows & (conditions == control)]
-        if reference.shape[0] < 2:
-            raise ValueError(
-                f"{by}={value!r} has {reference.shape[0]} {control} cells; "
-                "cannot scale a group without controls"
-            )
-        spread = reference.std(axis=0, ddof=1)
-        usable = spread > 0
-        block = np.zeros((int(rows.sum()), logged.shape[1]))
-        block[:, usable] = (
-            (logged[rows][:, usable] - reference.mean(axis=0)[usable]) / spread[usable]
+    present = [c for c in controls if (conditions == c).any()]
+    if not present:
+        raise ValueError(
+            f"none of {list(controls)} appear in obs[{condition_key!r}]; "
+            "cannot normalise without control cells"
         )
-        out[rows] = block
+    first = groups.min()
 
+    centres, deviations = [], []
+    for vehicle in present:
+        is_vehicle = conditions == vehicle
+        origin = logged[is_vehicle & (groups == first)]
+        if origin.shape[0] < 2:
+            raise ValueError(
+                f"{vehicle!r} has {origin.shape[0]} cells at {by}={first}; "
+                "cannot place the origin without them"
+            )
+        centres.append(np.median(origin, axis=0))
+        # Deviations about each group's own median, so neither the drift across
+        # timepoints nor the DMSO-PBS gap counts as spread.
+        for value in np.unique(groups[is_vehicle]):
+            block = logged[is_vehicle & (groups == value)]
+            deviations.append(block - np.median(block, axis=0))
+
+    centre = np.mean(centres, axis=0)
+    scale = 1.4826 * np.median(np.abs(np.vstack(deviations)), axis=0)
+
+    out = np.zeros_like(logged)
+    usable = scale > 0
+    out[:, usable] = (logged[:, usable] - centre[usable]) / scale[usable]
     return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0).astype("float32")
 
 
@@ -297,14 +357,28 @@ def effect_table(
 ) -> pd.DataFrame:
     """Mean shift from the control, per condition and marker.
 
-    Values are already in control-SD units, so this is a mean of z-scores: the
+    Values arrive in control-SD units, so this is a difference of z-scores: the
     number says "this many control-well standard deviations from the control".
+
+    The control is subtracted **explicitly**, and that matters. It is tempting to
+    skip it -- the normalisation puts the controls near zero, so a plain group
+    mean already looks like a shift -- but that only holds at the one timepoint
+    the origin was taken from. Everywhere else the controls have moved, and a
+    group mean would report their own development as though it were a treatment
+    effect. See Step 17 of chapter 03 for why the origin is fixed rather than
+    following the controls around.
     """
-    group = ["condition", "timepoint"] if by_timepoint else ["condition"]
-    table = wells.groupby(group, observed=True)[markers].mean()
-    # `level=0` is only valid on the MultiIndex that grouping by two keys makes.
-    if isinstance(table.index, pd.MultiIndex):
+    if by_timepoint:
+        table = wells.groupby(["condition", "timepoint"], observed=True)[markers].mean()
+        reference = (wells[wells.condition == control]
+                     .groupby("timepoint", observed=True)[markers].mean())
+        matched = reference.reindex(table.index.get_level_values("timepoint"))
+        table = table - matched.to_numpy()
+        # `level=0` is only valid on the MultiIndex that grouping by two keys makes.
         return table.drop(index=control, level=0, errors="ignore")
+
+    table = wells.groupby("condition", observed=True)[markers].mean()
+    table = table - wells.loc[wells.condition == control, markers].mean()
     return table.drop(index=control, errors="ignore")
 
 
