@@ -114,20 +114,38 @@ def normalise_cells(
     subtracting one constant removes it everywhere. A per-timepoint origin
     removes that drift *and* the biology; this removes only the drift.
 
-    **Unit -- what counts as one.** 1.4826 times the median absolute deviation
-    of every control cell on the plate, taken about the median of its own
-    vehicle x timepoint group. Using the whole plate makes the estimate stable;
-    taking deviations about each group's own centre stops the drift, and the gap
-    between the two vehicles, from inflating it. That gap is real -- 11 of the 38
-    markers separate DMSO from PBS by more than a control SD -- so pooling the
-    two naively would widen the unit and quietly shrink every effect measured in
-    it.
+    **Unit -- what counts as one.** The standard deviation of every control cell
+    on the plate, taken about the median of its own vehicle x timepoint group.
+    Using the whole plate makes the estimate stable; taking deviations about each
+    group's own centre stops the drift, and the gap between the two vehicles,
+    from inflating it. That gap is real -- 11 of the 38 markers separate DMSO
+    from PBS by more than a control SD -- so pooling the two naively would widen
+    the unit and quietly shrink every effect measured in it.
 
-    Median and MAD rather than mean and SD: single-cell intensities have long
-    right tails, and debris and dying cells sit in them.
+    **Why the centre is a median and the unit is not.** They are different
+    estimation problems. The centre asks *where is the middle*, and a handful of
+    very bright cells -- debris, doublets, a dying cell full of autofluorescence
+    -- drag a mean off the bulk while leaving a median where it was. So the
+    origin is a median.
+
+    The unit asks *how wide is this*, and there the median absolute deviation has
+    a failure mode the standard deviation does not: it is decided entirely by the
+    middle half of the data, so if more than half the cells share a value it is
+    exactly zero however the rest behave. That is not hypothetical here. A marker
+    that is not expressed reads at background in most cells, and on this plate
+    GATA4 sits at exactly zero in 69% of control cells and p21 in 53% -- so their
+    MADs come out 0.000 and 0.006 against standard deviations of 2.25 and 1.58.
+    The first would be deleted by the guard below and the second inflated about
+    260-fold. Measured across all 38 markers, a MAD unit gives the control block
+    a spread of 46 and a worst z-score of 1934; a standard-deviation unit gives
+    1.13 and 14.
+
+    The MAD is the more robust estimator and the wrong one for this data: what it
+    is designed to ignore is exactly where a switching marker keeps its signal.
 
     A column whose control cells have no spread at all carries no information,
-    and comes back as zeros rather than as infinities.
+    and comes back as zeros rather than as infinities. With a standard deviation
+    that now means genuinely constant, rather than merely sparse.
 
     Returns a dense ``float32`` array of ``(n_obs, len(columns))``.
     """
@@ -155,13 +173,14 @@ def normalise_cells(
             )
         centres.append(np.median(origin, axis=0))
         # Deviations about each group's own median, so neither the drift across
-        # timepoints nor the DMSO-PBS gap counts as spread.
+        # timepoints nor the DMSO-PBS gap counts as spread. The centre is still a
+        # median here; it is only the width that is a standard deviation.
         for value in np.unique(groups[is_vehicle]):
             block = logged[is_vehicle & (groups == value)]
             deviations.append(block - np.median(block, axis=0))
 
     centre = np.mean(centres, axis=0)
-    scale = 1.4826 * np.median(np.abs(np.vstack(deviations)), axis=0)
+    scale = np.vstack(deviations).std(axis=0, ddof=1)
 
     out = np.zeros_like(logged)
     usable = scale > 0

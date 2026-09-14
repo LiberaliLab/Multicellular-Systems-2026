@@ -197,12 +197,40 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # timepoint**, and pool those instead. The unit becomes the spread of a control cell about
 # its own group: plate-wide and stable, without the two things that are not spread.
 #
-# ### Median, not mean
+# ### The centre is a median. The unit is not, and that took a bug to learn
 #
 # Single-cell intensity distributions have long right tails, and debris, doublets and dying
-# cells live in them. A mean follows them; a median does not. So the origin is a median, and
-# the unit is 1.4826 × the median absolute deviation — the MAD rescaled so that, for normal
-# data, one unit means the same as one standard deviation.
+# cells live in them. A mean follows them; a median does not. So the **origin** is a median,
+# and it should be.
+#
+# The obvious next step is to make the **unit** robust in the same way, with the median
+# absolute deviation. That is what this chapter did first, and it was wrong — badly enough
+# that it deleted a marker.
+#
+# The MAD is decided entirely by the middle half of the data. If more than half the cells
+# share a value, it is **exactly zero**, however the rest behave. That is not a hypothetical
+# in 4i: a marker that is not expressed reads at background in most cells. On this plate
+# **GATA4 sits at exactly zero in 69% of control cells** and **p21 in 53%**, so their MADs
+# came out `0.000` and `0.006` against standard deviations of `2.25` and `1.58`. The guard
+# further down deletes a column with no spread, so GATA4 — the most dynamic marker in the
+# whole panel — was silently replaced by zeros, and p21's values were inflated about
+# 260-fold.
+#
+# | unit | spread of the control block | dead columns | worst \|z\| |
+# |---|---|---|---|
+# | 1.4826 × MAD | **45.7** | **1** | **1934** |
+# | standard deviation | **1.13** | 0 | 14 |
+#
+# So the unit is a **standard deviation** of those deviations. It is the less robust
+# estimator and the right one here, because the two failure modes are not comparable: a few
+# bright cells make an SD somewhat too wide, which understates effects gradually and in the
+# conservative direction, while a MAD on a switching marker goes to zero, which destroys it.
+# **What the MAD is built to ignore is exactly where a marker that switches on keeps its
+# signal.**
+#
+# Robustness is not a property you turn on. It is a claim about which part of the
+# distribution you are willing to lose, and that answer is different for a centre and for a
+# width.
 #
 # ### Both vehicles
 #
@@ -234,7 +262,8 @@ pd.DataFrame(
       "control cells": int((controls & (timepoint == t)).sum()),
       "median |shift| across markers":
           round(float(np.abs(np.median(values[controls & (timepoint == t)], axis=0)).mean()), 3),
-      "spread": round(float(values[controls & (timepoint == t)].std(ddof=1)), 3)}
+      "spread per marker":
+          round(float(np.median(values[controls & (timepoint == t)].std(axis=0, ddof=1))), 3)}
      for t in sorted(set(timepoint))]
 ).set_index("timepoint")
 
@@ -254,10 +283,13 @@ pd.DataFrame(
 # The table says the controls are free to move after 36 h. A picture says *how much*, and makes the difference between the two recipes impossible to miss.
 #
 # **GATA4**, **Fibronectin** and **Calreticulin** are all expected to rise as the system develops — endoderm specification, matrix deposition, and the secretory load that comes with it. They were also stained in rounds **2, 22 and 28**, spread right across the run, which is the second reason to pick them: if all three still trace a clean course in time, round order is not what you are looking at.
+#
+# Both rows are summarised **per well**, because the well is the replicate unit and because a cell median is the wrong summary for a marker that is simply absent from most cells. GATA4 is negative in more than half the control cells at every timepoint, so its cell median sits at zero however many cells have switched on. A well mean counts them.
 
 # %%
 WATCH = ["GATA4", "Fibronectin", "Calreticulin"]
 watch_cols = [c for c in marker_cols if clean.var.loc[c, "marker"] in WATCH]
+names = [clean.var.loc[c, "marker"] for c in marker_cols]
 hours = sorted(set(timepoint))
 
 # The recipe this chapter argues against, without reimplementing it: normalising one
@@ -269,6 +301,17 @@ for value in hours:
     rows = timepoint == value
     per_timepoint[rows] = analysis.normalise_cells(clean[rows], marker_cols)
 
+
+# Everything below is summarised per well, the replicate unit. A cell median would be the
+# wrong summary here: GATA4 is simply absent from more than half the control cells at
+# every timepoint, so its cell median stays at zero no matter how many cells switch on.
+# A well mean counts them.
+def control_wells(matrix):
+    block = ad.AnnData(X=matrix, obs=clean.obs.copy(), var=pd.DataFrame(index=names))
+    table = analysis.by_well(block)
+    return table[table.condition.isin(analysis.CONTROLS)]
+
+fixed_origin, moving_origin = control_wells(values), control_wells(per_timepoint)
 raw = analysis.by_well(clean, watch_cols, name_by="marker")
 raw = raw[raw.condition.isin(analysis.CONTROLS)]
 
@@ -285,13 +328,12 @@ for k, column in enumerate(watch_cols):
            xlabel="hours", ylabel="log2(intensity + 1)", xticks=hours)
 
     ax = axes[k + 3]
-    position = marker_cols.index(column)
-    for label, matrix, colour in [
-        ("origin fixed at 36 h", values, "firebrick"),
-        ("origin re-set each timepoint", per_timepoint, "steelblue"),
+    for label, table, colour in [
+        ("origin fixed at 36 h", fixed_origin, "firebrick"),
+        ("origin re-set each timepoint", moving_origin, "steelblue"),
     ]:
-        ax.plot(hours,
-                [np.median(matrix[controls & (timepoint == h), position]) for h in hours],
+        ax.plot(table.timepoint, table[name], "o", color=colour, ms=3.5, alpha=0.4)
+        ax.plot(hours, [table.loc[table.timepoint == h, name].median() for h in hours],
                 "o-", color=colour, lw=1.8, ms=5, label=label)
     ax.axhline(0, color="0.7", lw=1, ls="--")
     ax.set(xlabel="hours", ylabel="control-cell SDs", xticks=hours)
@@ -300,15 +342,35 @@ for k, column in enumerate(watch_cols):
 fig.tight_layout()
 
 # %% [markdown]
-# **Top row — the measurement.** Absolute level in log2 intensity, before anything has been done to it. The three markers sit at quite different heights, and that is the round they were stained in rather than the biology. It is exactly what subtracting one origin per marker is for.
+# **Top row — the measurement.** Absolute level in log2 intensity, before anything has been
+# done to it. The three markers sit at quite different heights, and that is the round they
+# were stained in rather than the biology. It is exactly what subtracting one origin per
+# marker is for.
 #
-# **Bottom row — the same three markers, the two recipes.** The blue trace is pinned to zero at every timepoint. Not because nothing happened to the controls, but because re-centring on each timepoint's own controls *defines* the control as zero at that timepoint. You cannot measure a change against a reference that moves with it.
+# **Bottom row — the same three markers, the two recipes.** For **Fibronectin** and
+# **Calreticulin** the blue trace is flat while the red one climbs. Nothing happened to the
+# blue cells that did not happen to the red ones; they are the same cells. Re-centring on
+# each timepoint's own controls *defines* the control as zero at that timepoint, and you
+# cannot measure a change against a reference that moves with it.
 #
-# The red trace is the same cells, measured from one fixed point at 36 h. Whatever it does is what the controls actually did.
+# **GATA4 is the interesting exception, and worth the paragraph.** There both traces rise.
+# The reason is that GATA4 is *off* in most control cells, so the control median sits on the
+# floor at every timepoint — and a moving origin can only erase what the origin is able to
+# move to. When the whole population shifts, re-centring takes the shift with it; when a
+# minority switches on from zero, the median never notices, so there is nothing for the
+# re-centring to remove.
+#
+# That is the useful version of the lesson. The per-timepoint recipe does not flatten
+# everything uniformly — it flattens exactly the changes you are most likely to care about
+# in a time course, and leaves a misleading impression of safety on the ones it misses.
 #
 # :::{note}
-# **If the red traces come out flat too, that is a result, not a failure.** It would say these controls changed little across 36–84 h, and that the experiment's signal lives in the treatments rather than in development. The argument does not depend on which way it goes: one of these two plots *can* answer the question, and the other cannot answer it even in principle.
+# The red traces here are modest — under one control SD for two of the three — and that is
+# worth reading correctly. One control SD is the spread of a single untreated cell, and
+# single cells within one well vary far more than the well average moves. A shift of 0.7 in
+# a **well mean** is large; it would be unremarkable in one cell.
 # :::
+#
 
 # %% [markdown]
 # ### The well table is not a second normalisation
@@ -566,7 +628,7 @@ cleaned.uns["provenance"] = {
     "wells_removed": "; ".join(f"{w}: {why}" for w, why in clean.uns["dropped_wells"].items()),
     "features": f"{len(marker_cols)} marker mean intensities, decoded from 4,464 raw columns",
     "X": ("log2(x + 1); origin = median of the DMSO+PBS cells at the first timepoint, "
-          "unit = 1.4826 x MAD of control cells about their own vehicle x timepoint median"),
+          "unit = SD of control cells about their own vehicle x timepoint median"),
     "layers_raw": "mean intensity as measured",
     "units": "control-cell standard deviations",
 }
@@ -675,8 +737,8 @@ cleaned
 #
 # Using `analysis.rank_effects`, list the ten largest condition × marker shifts. How many
 # exceed 3 control SDs? Compare that with the unit those SDs are measured in — Step 17
-# sets one control SD to 1.4826 × the MAD of the control cells, so a shift of 3 means
-# three times the spread of an untreated cell.
+# sets one control SD to the standard deviation of the control cells about their own group,
+# so a shift of 3 means three times the spread of a single untreated cell.
 
 # %% [markdown]
 # :::{admonition} Solution
