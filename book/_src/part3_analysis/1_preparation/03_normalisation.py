@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -246,6 +247,68 @@ pd.DataFrame(
 #
 # If those later rows had come back near zero as well, that would be a real result: the
 # controls did not move. The difference is that now the data gets to say so.
+
+# %% [markdown]
+# ### Watch it work, on three markers that should move
+#
+# The table says the controls are free to move after 36 h. A picture says *how much*, and makes the difference between the two recipes impossible to miss.
+#
+# **GATA4**, **Fibronectin** and **Calreticulin** are all expected to rise as the system develops — endoderm specification, matrix deposition, and the secretory load that comes with it. They were also stained in rounds **2, 22 and 28**, spread right across the run, which is the second reason to pick them: if all three still trace a clean course in time, round order is not what you are looking at.
+
+# %%
+WATCH = ["GATA4", "Fibronectin", "Calreticulin"]
+watch_cols = [c for c in marker_cols if clean.var.loc[c, "marker"] in WATCH]
+hours = sorted(set(timepoint))
+
+# The recipe this chapter argues against, without reimplementing it: normalising one
+# timepoint at a time *is* centring on that timepoint's own controls, because within a
+# single timepoint "the first timepoint" is that timepoint. `clean[rows]` is a view, so
+# this costs one 38-column block per timepoint rather than a copy of the wide table.
+per_timepoint = np.zeros_like(values)
+for value in hours:
+    rows = timepoint == value
+    per_timepoint[rows] = analysis.normalise_cells(clean[rows], marker_cols)
+
+raw = analysis.by_well(clean, watch_cols, name_by="marker")
+raw = raw[raw.condition.isin(analysis.CONTROLS)]
+
+fig, axes = plotting.panel_grid(6, ncols=3, size=(4.0, 3.1))
+for k, column in enumerate(watch_cols):
+    name = clean.var.loc[column, "marker"]
+
+    ax = axes[k]
+    logged = np.log2(raw[name] + 1)
+    ax.plot(raw.timepoint, logged, "o", color="0.6", ms=4, alpha=0.8)
+    ax.plot(hours, [logged[raw.timepoint == h].median() for h in hours],
+            "-", color="black", lw=1.6)
+    ax.set(title=f"{name}  ·  round {int(clean.var.loc[column, 'round'])}",
+           xlabel="hours", ylabel="log2(intensity + 1)", xticks=hours)
+
+    ax = axes[k + 3]
+    position = marker_cols.index(column)
+    for label, matrix, colour in [
+        ("origin fixed at 36 h", values, "firebrick"),
+        ("origin re-set each timepoint", per_timepoint, "steelblue"),
+    ]:
+        ax.plot(hours,
+                [np.median(matrix[controls & (timepoint == h), position]) for h in hours],
+                "o-", color=colour, lw=1.8, ms=5, label=label)
+    ax.axhline(0, color="0.7", lw=1, ls="--")
+    ax.set(xlabel="hours", ylabel="control-cell SDs", xticks=hours)
+    if k == 0:
+        ax.legend(fontsize=7.5, loc="best")
+fig.tight_layout()
+
+# %% [markdown]
+# **Top row — the measurement.** Absolute level in log2 intensity, before anything has been done to it. The three markers sit at quite different heights, and that is the round they were stained in rather than the biology. It is exactly what subtracting one origin per marker is for.
+#
+# **Bottom row — the same three markers, the two recipes.** The blue trace is pinned to zero at every timepoint. Not because nothing happened to the controls, but because re-centring on each timepoint's own controls *defines* the control as zero at that timepoint. You cannot measure a change against a reference that moves with it.
+#
+# The red trace is the same cells, measured from one fixed point at 36 h. Whatever it does is what the controls actually did.
+#
+# :::{note}
+# **If the red traces come out flat too, that is a result, not a failure.** It would say these controls changed little across 36–84 h, and that the experiment's signal lives in the treatments rather than in development. The argument does not depend on which way it goes: one of these two plots *can* answer the question, and the other cannot answer it even in principle.
+# :::
 
 # %% [markdown]
 # ### The well table is not a second normalisation
@@ -611,7 +674,9 @@ cleaned
 # ### 3. How large is a real effect, in this experiment?
 #
 # Using `analysis.rank_effects`, list the ten largest condition × marker shifts. How many
-# exceed 3 control SDs? Compare that with the median control-well SD from Step 13.
+# exceed 3 control SDs? Compare that with the unit those SDs are measured in — Step 17
+# sets one control SD to 1.4826 × the MAD of the control cells, so a shift of 3 means
+# three times the spread of an untreated cell.
 
 # %% [markdown]
 # :::{admonition} Solution

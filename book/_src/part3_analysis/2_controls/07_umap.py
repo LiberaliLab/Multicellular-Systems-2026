@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -462,7 +463,7 @@ print(f"  uns  : {sorted(cells.uns)}")
 # Part 4's job, and doing it before you have run the methods here is how you end up
 # describing an artefact with confidence.
 # :::
-
+#
 # ### 3. Colour it by something that should mean nothing
 #
 # Colour the map by `ROI` (the imaging field within a well) and by `label` (the

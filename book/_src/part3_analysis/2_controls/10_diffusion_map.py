@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -348,6 +349,7 @@ pd.DataFrame({
 # question with a number attached, not a matter of hoping.
 
 # %% [markdown]
+#
 # %% [markdown]
 # ### One last check: the negative result, properly powered
 #

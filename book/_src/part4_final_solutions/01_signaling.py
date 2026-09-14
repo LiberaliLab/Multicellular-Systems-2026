@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -317,7 +318,8 @@ print(f"saved theme summary for {THEME}")
 # in culture for 84 h are further along in differentiation than at 36 h, so markers
 # tracking that transition should dominate the axis that separates timepoints. If instead
 # PC1 loads mostly on one noisy marker, you are looking at a technical axis, and the
-# marker-level control SDs from [Step 13](../part3_analysis/1_preparation/02_quality_control.ipynb) will tell you which.
+# per-marker control spread from
+# [Step 17](../part3_analysis/1_preparation/03_normalisation.ipynb) will tell you which.
 # :::
 
 # %% [markdown]

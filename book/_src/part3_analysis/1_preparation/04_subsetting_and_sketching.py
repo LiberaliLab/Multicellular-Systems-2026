@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -160,7 +161,7 @@ print(f"  60 and 84 h only: {late.n_obs:,} cells, "
 #
 # The same goes for timepoints: keep at least two, or you cannot say anything changed.
 # :::
-
+#
 # ## 3 · Subset by cell — and why random is not good enough
 #
 # The wrong way first, because it looks reasonable:

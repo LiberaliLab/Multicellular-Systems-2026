@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -782,8 +783,8 @@ print(f"  mcs2026_clean.h5ad — now carries obs['pseudotime']")
 # ```
 #
 # A flat marker is not a failed marker. It may be genuinely unaffected by all 18 compounds,
-# or it may be noisy enough to swamp a real effect — Step 13's per-marker control SD
-# distinguishes the two. Check that before calling an antibody useless.
+# or it may be noisy enough to swamp a real effect — the per-marker control spread from
+# [Step 17](../part3_analysis/1_preparation/03_normalisation.ipynb) distinguishes the two. Check that before calling an antibody useless.
 # :::
 
 # %% [markdown]

@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -235,7 +236,7 @@ frame.groupby("condition", observed=True).agg(cells=("Oct4", "size"),
 # `timepoint_h` is also an **ordered** categorical, which is right for plotting and wrong for
 # arithmetic — pandas will not subtract categories. Cast it: `obs.timepoint_h.astype(int)`.
 # :::
-
+#
 # ## 5 · Which file to open for which question
 #
 # Stage 1 wrote four. Choosing the wrong one is the most common way to get a confidently
@@ -272,7 +273,7 @@ pd.DataFrame([
 # patience; the 653,000-cell table does not, which is why Part 4 has a sketch and this stage
 # does not need one.
 # :::
-
+#
 # ## The habit
 #
 # One cell, at the top of every notebook, before anything else:

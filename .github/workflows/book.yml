@@ -30,6 +30,12 @@ jobs:
       - name: Install Jupyter Book
         run: pip install -r environment/requirements-book.txt
 
+      # book/_src/*.py is a generated mirror of the notebooks, kept so that
+      # reviews show prose and code rather than JSON. It is only useful if it is
+      # current, so fail here rather than let a stale mirror mislead a reader.
+      - name: Check book/_src matches the notebooks
+        run: ./tools/build_notebooks.sh --check
+
       # Notebooks are committed with their outputs and _config.yml sets
       # execute_notebooks: off, so this needs neither the cluster data nor a
       # large runner. --warningiserror turns a broken cross-reference into a
