@@ -401,7 +401,7 @@ pd.Series({
 # :::{note}
 # **This is the first of three cuts, not the only one.** 2,587 columns is small enough to
 # store and too large to analyse: 2,262 of them are texture, and a method handed all of them
-# describes texture. [Step 19](03_normalisation.ipynb) cuts to the **38** marker mean
+# describes texture. [Step 18](03_normalisation.ipynb) cuts to the **38** marker mean
 # intensities and shows why, and
 # [chapter 07](../2_controls/07_umap.ipynb) cuts again to **8** for everything that builds a
 # neighbour graph.

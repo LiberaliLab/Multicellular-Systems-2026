@@ -15,20 +15,16 @@
 # %% [markdown]
 # # 03 · Normalisation
 #
-# Steps 15 to 19 — the last of Stage 1. Chapter 02 decided what to throw away; this one
-# makes what is left **comparable**, and then packs it into the single object every
-# chapter after this one opens.
+# Steps 15 to 18. Chapter 02 decided what to throw away; this one
+# makes what is left **comparable**, and then packs it into the single object.
 #
 # | | |
 # |---|---|
 # | **Step 15** | Are intensities comparable across rounds? |
 # | **Step 16** | Is any condition an outlier? |
 # | **Step 17** | Normalise to the controls |
-# | **Step 18** | Check a known answer |
-# | **Step 19** | Assemble the clean object |
+# | **Step 18** | Assemble the clean object |
 #
-# Steps 15 and 16 are the same kind of move: **find a reason the numbers might not mean
-# what they appear to**, and settle it before analysing them.
 
 # %%
 import sys
@@ -50,7 +46,12 @@ from mcs2026.config import H5AD_SLIM, LAYOUT_XLSX
 plotting.set_style()
 pd.set_option("display.width", 140)
 
+
+### Clean is the filtered anndata from the previous notebook
+
 clean = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"))
+
+
 print(f"{clean.n_obs:,} cells x {clean.n_vars:,} features, "
       f"{clean.obs.well.nunique()} wells")
 
@@ -118,17 +119,17 @@ ax.set(yticks=range(len(spread)), yticklabels=spread.index,
        xlabel="mean |log2 shift vs DMSO|", title="How far each condition sits from the control")
 ax.invert_yaxis()
 
-# %%
-spread.head(4).round(3)
+# %% [markdown]
+# Here we show the mean marker intensity (all markers) deviation by condition, with DMSO as the zero.
+#
 
 # %% [markdown]
-# **PMA moves every marker, by a lot** — several times further than anything else. That is
-# not a pathway response, it is a different cell state. Phorbol esters drive naive human ES
-# cells out of pluripotency, so a wholesale change is biologically reasonable; it is still
+# **PMA moves every marker, by a lot** — several times further than anything else. Phorbol esters drive naive human ES
+# cells out of pluripotency, so could be biologically reasonable; however it is still
 # an outlier statistically.
 #
 # :::{important}
-# This is a decision, and it should be a conscious one:
+# Thus we need to make a decision :
 #
 # - **keep PMA** and it dominates the first component of every embedding, so the plot
 #   describes PMA-vs-everything rather than the structure among the other seventeen;
@@ -139,6 +140,10 @@ spread.head(4).round(3)
 # were about subtle signaling differences.
 # :::
 
+# %% [markdown]
+# #### Marking the cells coming from the PMA condition
+# We can mark these cells in the anndata object, in order to better disntinguish it during analysis.
+
 # %%
 clean.obs["is_outlier_condition"] = clean.obs.condition.astype(str).eq(
     "Phorbol 12-myristate 13-acetate (PMA)"
@@ -147,17 +152,64 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
       f"{clean.obs.loc[clean.obs.is_outlier_condition, 'well'].nunique()} wells")
 
 # %% [markdown]
-# ## Step 17 · Set the origin and the unit
+# ## Step 17 · Normalization: Set the origin and the unit
 #
-# Normalising is **two** decisions, not one, and running them together is how a time course
-# gets thrown away. The **origin** says what counts as zero. The **unit** says what counts
+# Normalising requires **two** steps. The **origin** says what counts as zero. The **unit** says what counts
 # as one. They answer different questions, they can be estimated from different cells, and
 # here they have to be.
 #
-# ### First, `log2`
+# ### The formula
 #
-# Intensities are multiplicative and heavily right-skewed. A doubling should look the same
-# whether it is 100→200 or 1000→2000. After `log2` it does.
+# $$
+# z \;=\; \frac{\log_2(x + 1) \;-\; B_{36}}{S}
+# $$
+#
+# **In one sentence:** how far this cell sits from an untreated cell at the *start* of the
+# experiment, counted in units of how much untreated cells normally differ from each other.
+#
+# | symbol | what it is | Fibronectin |
+# |---|---|---|
+# | $x$ | the measured mean intensity of one marker in one cell | 120 |
+# | $B_{36}$ | **the origin** — median of that marker in control cells at 36 h | 5.88 |
+# | $S$ | **the unit** — spread of control cells about their own group, pooled over the plate | 0.71 |
+# | $z$ | the answer, in **control SDs** | **+1.47** |
+#
+# ```{image} ../../images/normalisation_formula.png
+# :alt: The three steps of the normalisation, shown on Fibronectin control cells at 36 h.
+# :width: 100%
+# ```
+#
+# **Why each piece is there**
+#
+# - **$\log_2(x+1)$** — intensities multiply rather than add, so a doubling should look the
+#   same whether it is 50→100 or 500→1000. The $+1$ is there because a marker that is switched
+#   off reads exactly 0 and $\log_2 0$ is undefined; $\log_2(0+1) = 0$ sends "no signal"
+#   cleanly to zero. To go back: $x = 2^{z S + B_{36}} - 1$.
+#   
+# - **$-\,B_{36}$** — one fixed starting line, so the controls' own development across 36–84 h
+#   stays visible. Subtract each timepoint's *own* controls instead and every timepoint reads
+#   zero by construction — you cannot measure a change against a reference that moves with it.
+#
+#   
+# - **$\div\,S$** — puts every marker in the same units, so a bright marker and a dim one can
+#   sit on the same axis. One unit is one typical cell-to-cell difference among untreated cells.
+#
+#
+# :::{note}
+# **Two refinements the code makes.** There are two vehicle controls, so $B_{36}$ is the
+# *average of the DMSO and PBS medians* rather than one pooled median — the two are not
+# interchangeable. And $S$ is built from each control cell's deviation from **its own vehicle
+# at its own timepoint** before pooling, so neither the drift across time nor the gap between
+# the vehicles is counted as spread.
+# :::
+#
+# :::{tip}
+# **One ruler, everywhere.** $B_{36}$ and $S$ are each a single number per marker, used for
+# every cell at every timepoint. That is what lets all four timepoints share one UMAP: the same
+# measurement always gives the same number, so a GATA4-positive cell is a GATA4-positive cell
+# whether it was fixed at 36 h or 84 h.
+# :::
+#
 #
 # ### The origin — the controls at the *first* timepoint
 #
@@ -171,7 +223,7 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # asks. The controls' own development — the thing that 36 to 84 hours was for — would be
 # gone before the first plot.
 #
-# So the origin is fixed **once**, from the control cells at the first timepoint. Zero means
+# So the origin is fixed **once** (**$-\,B_{36}$**), from the control cells at the first timepoint. Zero means
 # *an untreated cell at the start of the experiment*, and every other cell — control or
 # treated, early or late — is measured from that one point.
 #
@@ -182,9 +234,7 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # buffer, on the same day.
 #
 # The drift is therefore **one number per marker, shared by every timepoint**, and a single
-# subtraction removes it everywhere. A per-timepoint origin removes that same constant and
-# takes the biology with it. Same artefact, same cure — and an entire experiment's
-# difference in what is left standing.
+# subtraction removes it everywhere.
 #
 # ### The unit — the spread of the controls, across the whole plate
 #
@@ -193,19 +243,20 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # across time and the gap between the two vehicles, and both would be counted as noise.
 # Anything later measured in a unit that wide is quietly shrunk.
 #
-# So take each control cell's deviation **from the median of its own vehicle at its own
-# timepoint**, and pool those instead. The unit becomes the spread of a control cell about
+# So take each control cell's deviation **from the median of its own group at its own
+# timepoint** (**$\div\,S$**), and pool those instead. The unit becomes the spread of a control cell about
 # its own group: plate-wide and stable, without the two things that are not spread.
 #
-# ### The centre is a median. The unit is not, and that took a bug to learn
+# :::{extra}
+# :class{dropdown}
+# ### Why median and not mean, and why SD and not the MAD
 #
 # Single-cell intensity distributions have long right tails, and debris, doublets and dying
 # cells live in them. A mean follows them; a median does not. So the **origin** is a median,
 # and it should be.
 #
 # The obvious next step is to make the **unit** robust in the same way, with the median
-# absolute deviation. That is what this chapter did first, and it was wrong — badly enough
-# that it deleted a marker.
+# absolute deviation (MAD).
 #
 # The MAD is decided entirely by the middle half of the data. If more than half the cells
 # share a value, it is **exactly zero**, however the rest behave. That is not a hypothetical
@@ -228,11 +279,10 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # **What the MAD is built to ignore is exactly where a marker that switches on keeps its
 # signal.**
 #
-# Robustness is not a property you turn on. It is a claim about which part of the
-# distribution you are willing to lose, and that answer is different for a centre and for a
-# width.
+# :::
 #
-# ### Both vehicles
+#
+# ### Controls
 #
 # DMSO and PBS are both controls, and between them they cover **seven plate rows** rather
 # than four. They are not interchangeable, though:
@@ -240,53 +290,29 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 # more than a control SD. So each vehicle contributes its own median, the origin is the
 # average of the two, and the gap between them never gets into the unit.
 #
-# One recipe, applied once, to cells:
 
 # %%
+# Here we apply the normalisation 
 values = analysis.normalise_cells(clean, marker_cols)
 print(f"  {values.shape[0]:,} cells x {values.shape[1]} markers, {values.dtype}")
 print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(clean.obs.timepoint_h.astype(int))} h")
 
 # %% [markdown]
-# ### The check, which is no longer a tautology
-#
-# The old check asked whether the controls sat at 0 with spread 1 *at every timepoint*.
-# They did — by construction, whatever the data said. Ask instead what this recipe actually
-# promises: zero at the start, free to move afterwards.
-
-# %%
-controls = clean.obs.condition.astype(str).isin(analysis.CONTROLS).values
-timepoint = clean.obs.timepoint_h.astype(int).values
-pd.DataFrame(
-    [{"timepoint": t,
-      "control cells": int((controls & (timepoint == t)).sum()),
-      "median |shift| across markers":
-          round(float(np.abs(np.median(values[controls & (timepoint == t)], axis=0)).mean()), 3),
-      "spread per marker":
-          round(float(np.median(values[controls & (timepoint == t)].std(axis=0, ddof=1))), 3)}
-     for t in sorted(set(timepoint))]
-).set_index("timepoint")
-
-# %% [markdown]
-# **The first row is zero because that is where the origin was put.** The rows under it are
-# not constrained by anything — they are the controls' own development over the next two
-# days, in control-cell SDs, and they are exactly what the per-timepoint recipe used to set
-# to zero. The spread column stays near 1 at every timepoint, which is the unit doing its
-# job.
-#
-# If those later rows had come back near zero as well, that would be a real result: the
-# controls did not move. The difference is that now the data gets to say so.
+# The code behind `normalise_cells` lives in
+# [`src/mcs2026/analysis.py`](https://github.com/Maaraujo-nv/Multicellular-Systems-2026/blob/main/src/mcs2026/analysis.py)
+# if you want to read what it actually does.
 
 # %% [markdown]
 # ### Watch it work, on three markers that should move
-#
-# The table says the controls are free to move after 36 h. A picture says *how much*, and makes the difference between the two recipes impossible to miss.
 #
 # **GATA4**, **Fibronectin** and **Calreticulin** are all expected to rise as the system develops — endoderm specification, matrix deposition, and the secretory load that comes with it. They were also stained in rounds **2, 22 and 28**, spread right across the run, which is the second reason to pick them: if all three still trace a clean course in time, round order is not what you are looking at.
 #
 # Both rows are summarised **per well**, because the well is the replicate unit and because a cell median is the wrong summary for a marker that is simply absent from most cells. GATA4 is negative in more than half the control cells at every timepoint, so its cell median sits at zero however many cells have switched on. A well mean counts them.
 
 # %%
+controls = clean.obs.condition.astype(str).isin(analysis.CONTROLS).values
+timepoint = clean.obs.timepoint_h.astype(int).values
+
 WATCH = ["GATA4", "Fibronectin", "Calreticulin"]
 watch_cols = [c for c in marker_cols if clean.var.loc[c, "marker"] in WATCH]
 names = [clean.var.loc[c, "marker"] for c in marker_cols]
@@ -348,10 +374,7 @@ fig.tight_layout()
 # marker is for.
 #
 # **Bottom row — the same three markers, the two recipes.** For **Fibronectin** and
-# **Calreticulin** the blue trace is flat while the red one climbs. Nothing happened to the
-# blue cells that did not happen to the red ones; they are the same cells. Re-centring on
-# each timepoint's own controls *defines* the control as zero at that timepoint, and you
-# cannot measure a change against a reference that moves with it.
+# **Calreticulin** the blue trace is flat while the red one climbs. Here we see the difference that makes centering on the first timepoint's controls versus on each timepoint's own controls.
 #
 # **GATA4 is the interesting exception, and worth the paragraph.** There both traces rise.
 # The reason is that GATA4 is *off* in most control cells, so the control median sits on the
@@ -364,107 +387,17 @@ fig.tight_layout()
 # everything uniformly — it flattens exactly the changes you are most likely to care about
 # in a time course, and leaves a misleading impression of safety on the ones it misses.
 #
-# :::{note}
-# The red traces here are modest — under one control SD for two of the three — and that is
-# worth reading correctly. One control SD is the spread of a single untreated cell, and
-# single cells within one well vary far more than the well average moves. A shift of 0.7 in
-# a **well mean** is large; it would be unremarkable in one cell.
-# :::
 #
 
 # %% [markdown]
-# ### The well table is not a second normalisation
+# ## Step 18 · Assemble the clean object
 #
-# Every statistical test in Part 3 runs on **well means**, because the well is what was
-# independently treated. That table is not normalised again — it is these same numbers,
-# averaged. Normalise once, to cells; everything else is an average of the result.
-
-# %%
-cleaned = ad.AnnData(X=values, obs=clean.obs.copy(),
-                     var=clean.var.loc[marker_cols].copy())
-# The long channel-and-round name was useful while decoding; from here the marker is the
-# name you want, and `var["column"]` keeps the original so nothing is lost.
-cleaned.var["column"] = marker_cols
-cleaned.var_names = names
-
-normalised = analysis.by_well(cleaned)
-normalised.iloc[:4, :7].round(2)
-
-# %% [markdown]
-# ## Step 18 · Check a known answer
+# Everything Stage 1 established is currently scattered: the decoder is in a `var` table, the
+# dropped wells in a `uns` entry, and the normalised values in `values`, a bare array that
+# exists only in this notebook's memory.
 #
-# The compounds were chosen to hit specific processes, so there is a prediction to test.
-# **Sapanisertib/INK128 inhibits mTOR**; mTORC1 activates S6 kinase, which phosphorylates
-# ribosomal protein S6. So INK128 should lower **p-S6**.
-
-# %%
-analysis.compare_to_control(normalised, "p-S6", "Sapanisertib/INK128")
-
-# %%
-analysis.compare_to_control(normalised, "p-S6", "MK-2206")
-
-# %% [markdown]
-# Both inhibitors lower p-S6 by several control SDs, most strongly at 36 h and weakening
-# steadily after — by 84 h MK-2206 has no measurable effect at all, and INK128's is a
-# fraction of what it was. The compound is used up, or the cells adapt. A real result, with
-# the sign the pathway predicts. **The normalisation works.**
-#
-# :::{warning}
-# **Read the p-values, not the stars.** Every significant row reads `0.0357`, and that is
-# not a coincidence: with 3 treated wells and 5 control wells there are
-# $\binom{8}{3} = 56$ rank orderings, so the smallest two-sided p-value a Mann-Whitney test
-# can *ever* return here is $2/56 = 0.0357$.
-#
-# No effect size, however enormous, produces a smaller one. The p-value has hit the floor
-# set by the number of wells — the same lesson as the $\sqrt{n-1}$ ceiling in
-# [Step 12](02_quality_control.ipynb), in a different disguise. `analysis.rank_effects`
-# reports that floor alongside every p-value for exactly this reason.
-# :::
-
-# %% [markdown]
-# ### The one that does not work
-#
-# The obvious readout for an AKT inhibitor is phospho-AKT itself. Try it.
-
-# %%
-analysis.compare_to_control(normalised, "p-AKT", "MK-2206")
-
-# %% [markdown]
-# Compare that with the p-S6 table above. p-S6 falls at every early timepoint, by a lot,
-# in the same direction. p-AKT does nothing of the kind: it drifts down at 36 h, **up** at
-# 48 h, down again at 60 h, and vanishes at 84 h. One row happens to clear the p-value
-# floor, but a signal that changes sign between timepoints is not a signal.
-#
-# This is not a failure of the normalisation, and it is worth understanding rather than
-# explaining away:
-#
-# - **Pathway feedback.** Inhibiting mTORC1 relieves a negative feedback loop onto the
-#   receptor, which *raises* AKT phosphorylation. Inhibitor and feedback partly cancel.
-# - **Where the antibody sits.** p-AKT was imaged in round 24, near the end of eighteen
-#   elution cycles. Phospho-epitopes are the most fragile thing in a 4i panel.
-# - **Downstream integrates.** p-S6 reflects sustained pathway output; a single
-#   phospho-site is a snapshot of a fast equilibrium.
-#
-# The pathway *is* visible — one step sideways:
-
-# %%
-for condition in ["MK-2206", "Wortmannin", "Sapanisertib/INK128"]:
-    shifts = analysis.compare_to_control(normalised, "Foxo1", condition)["shift"]
-    print(f"  Foxo1 vs {condition:22s} {list(shifts)}  all negative: {bool((shifts < 0).all())}")
-
-# %% [markdown]
-# **Foxo1 falls for all three inhibitors, at every timepoint.** FoxO transcription factors
-# are direct AKT substrates. The pathway is there; it is simply not where you first looked.
-
-# %% [markdown]
-# ## Step 19 · Assemble the clean object
-#
-# Everything Stage 1 established is currently scattered: the values are in one file, the
-# decoder in a `var` table, the dropped wells in a `uns` entry, and the normalisation only
-# exists as a well-level DataFrame that lives in this notebook's memory.
-#
-# This step puts it in one object, so that every chapter after this one begins with a
-# single `read_h5ad` and no set-up.
+# This step puts them together, so that every chapter after this one begins with a single
+# `read_h5ad` and no set-up.
 #
 # ```{image} ../../images/clean_object_light.svg
 # :class: only-light
@@ -565,91 +498,149 @@ print(f"  {', '.join(marker_names[:10])} …")
 # %% [markdown]
 # ### Build it
 #
-# `X` is already normalised — that happened once, in Step 17 — so the object is assembled
-# around values that exist. Five slots, each with a job:
+# **You already have the object.** `clean` is an `AnnData` — every surviving cell × every
+# surviving feature — so nothing here is built from scratch. This step does two things to it:
+# writes down the per-cell measurements that are currently buried among the columns, then keeps
+# the 38 markers and swaps in the normalised numbers.
 #
-# | slot | what goes in it |
-# |---|---|
-# | `X` | the normalised values — control-cell SDs from an origin at the first timepoint |
-# | `layers["raw"]` | the intensities as measured, so nothing is thrown away |
-# | `var` | marker, channel, round, family, theme, thresholds — the decoder from Step 7 |
-# | `obs` | well, row, column, condition, timepoint, replicate, area, DAPI |
-# | `uns["provenance"]` | what was dropped, why, and how the numbers were made |
+# An `AnnData` has five places to put things, and knowing which is which is most of what there
+# is to know about it:
+#
+# | slot | one row per | what goes in it |
+# |---|---|---|
+# | `X` | cell × marker | the numbers you analyse — normalised, in control SDs |
+# | `layers["raw"]` | cell × marker | the same table, as measured |
+# | `var` | **marker** | the decoder from Step 7 — channel, round, family, theme, thresholds |
+# | `obs` | **cell** | well, condition, timepoint, replicate, and the measurements that are not stains |
+# | `uns` | the whole object | what was dropped, why, and how the numbers were made |
+#
+# **The one rule: `obs` has to line up with `X`'s rows, and `var` with its columns.** Subsetting
+# keeps that true for you — `clean[:, marker_cols]` takes the columns *and* their matching `var`
+# rows in a single move. Assembling the pieces by hand is where alignment quietly goes wrong.
+#
+# #### Two files, because choosing 38 markers is a decision
+#
+# | file | shape | `X` | reach for it when |
+# |---|---|---|---|
+# | `mcs2026_clean.h5ad` | cells × 38 | normalised | doing anything in Stage 2 or Part 4 |
+# | `mcs2026_full.h5ad` | cells × 2,587 | as measured | you want texture, a shape feature dropped below, or the population columns |
+#
+# The 38 markers are the right set for the question this course asks. They are not the only set,
+# and an archive is what makes that choice reversible.
 
 # %%
-cleaned.layers["raw"] = np.asarray(clean[:, marker_cols].X, dtype="float32")
+# Per-cell facts that are currently implicit or buried in the columns. All of them go on
+# `clean`, before the split, so both files inherit them.
 
-# %% [markdown]
-# **`replicate`** is the one piece of metadata the plate implies but never states: which
-# of the three (or five) wells of a condition × timepoint this cell came from. Every
-# statistical test in Part 4 counts wells, so the number is worth having explicitly.
-
-# %%
-well_key = (cleaned.obs[["condition", "timepoint_h", "well"]]
+# `replicate` is the one thing the plate implies but never states: which of the three (or
+# five) wells of a condition x timepoint this cell came from. Part 4 counts wells.
+well_key = (clean.obs[["condition", "timepoint_h", "well"]]
             .drop_duplicates()
             .sort_values(["condition", "timepoint_h", "well"]))
 well_key["replicate"] = (well_key.groupby(["condition", "timepoint_h"], observed=True)
                          .cumcount() + 1)
-cleaned.obs["replicate"] = (cleaned.obs.well.astype(str)
-                            .map(dict(zip(well_key.well.astype(str), well_key.replicate)))
-                            .astype("int8"))
-well_key.groupby("condition", observed=True).replicate.max().rename("wells per timepoint")
+clean.obs["replicate"] = (clean.obs.well.astype(str)
+                          .map(dict(zip(well_key.well.astype(str), well_key.replicate)))
+                          .astype("int8"))
 
-# %% [markdown]
-# Two more per-cell numbers are worth carrying across. Neither is a marker — **area** is a
-# shape measurement and **DAPI** is the counterstain imaged in every round — so neither
-# belongs in `X` alongside the antibodies. But both explain things the markers cannot: how
-# big a cell is, and how brightly it stained overall. They go in `obs`.
+# Measurements of the *cell* rather than of a stain. DAPI is the counterstain; the rest come
+# from the segmentation mask. None belongs in `X` alongside the antibodies, and none is
+# normalised -- see the note below.
+PER_CELL = {"area": "area", "eccentricity": "eccentricity", "solidity": "solidity",
+            "extent": "extent", "roundness": "roundness",
+            "well_centroid-0": "x_in_well", "well_centroid-1": "y_in_well"}
+for statistic, name in PER_CELL.items():
+    found = clean.var.index[(clean.var.family == "Morphology")
+                            & (clean.var.statistic == statistic)]
+    if len(found) == 0:                     # fail loudly rather than silently skip a column
+        raise KeyError(f"no Morphology column for {statistic!r}")
+    clean.obs[name] = np.asarray(clean[:, found[0]].X).ravel()
 
-# %%
-area_column = clean.var.index[(clean.var.family == "Morphology")
-                              & (clean.var.statistic == "area")][0]
 dapi_column = clean.var.index[(clean.var.channel == "DAPI")
                               & (clean.var.statistic == "mean_intensity")
                               & (clean.var["round"] == 0)][0]
-cleaned.obs["area"] = np.asarray(clean[:, area_column].X).ravel()
-cleaned.obs["dapi"] = np.asarray(clean[:, dapi_column].X).ravel()
-cleaned.obs[["area", "dapi"]].describe().loc[["mean", "std", "min", "max"]].round(1)
+clean.obs["dapi"] = np.asarray(clean[:, dapi_column].X).ravel()
+
+clean.obs[list(PER_CELL.values()) + ["dapi"]].describe().loc[["mean", "min", "max"]].round(2)
 
 # %% [markdown]
-# ### Write down what happened to it
+# **Why the `obs` measurements are not normalised.** `normalise_cells` exists to remove
+# round-to-round staining drift, and these were not stained — the shape features come from the
+# segmentation mask, measured **once per cell**, which is exactly what Step 9 found when the 396
+# morphology columns turned out byte-identical across all 18 rounds. There is no artefact to
+# remove.
 #
-# In six months you will open this file and not remember whether the border cells came
-# out, or which well was dropped and why. Neither will whoever you send it to. `uns` is
-# where that goes.
+# They do change over the course — median area more than halves from 36 h to 84 h as cells
+# divide and crowd, while every shape ratio stays flat — but that is biology. So they go in as
+# measured: `area` and the positions in pixels, the four ratios on their natural 0–1 scale.
+# "This cell is 2,000 px" means something; "+0.3 control SDs of area" does not.
+#
+# Keep it in mind when you plot: **`X` is in control SDs, these `obs` columns are in measured
+# units.** If you ever want to cluster on shape, z-score it at that point, where the choice is
+# visible.
 
 # %%
-cleaned.uns["provenance"] = {
+# Notes that belong to both files. In six months neither you nor whoever you sent it to will
+# remember whether the border cells came out, or which well was dropped and why.
+clean.uns["provenance"] = {
     **clean.uns.get("provenance", {}),
     "built_by": "Multicellular Systems 2026, Part 3 Stage 1, chapter 03",
     "built_on": date.today().isoformat(),
     "layout_workbook": LAYOUT_XLSX.name,
     "cells_removed": "border cells — is_border_external or is_border_internal",
     "wells_removed": "; ".join(f"{w}: {why}" for w, why in clean.uns["dropped_wells"].items()),
+}
+for key, value in clean.uns["provenance"].items():
+    print(f"  {key:18s} {value}")
+
+# %%
+# The archive: every column, as measured, with the obs and provenance above.
+clean.uns["provenance"]["features"] = f"{clean.n_vars:,} columns, as measured"
+clean.write_h5ad(H5AD_SLIM.with_name("mcs2026_full.h5ad"), compression="gzip")
+print(f"  mcs2026_full.h5ad  {clean.n_obs:,} cells x {clean.n_vars:,} features, as measured")
+
+# %%
+# The analysis object: the same cells, 38 marker columns, normalised numbers. `obs`, `var`
+# and `uns` come along with the subset -- that is the point of doing it this way round.
+cleaned = clean[:, marker_cols].copy()
+cleaned.layers["raw"] = np.asarray(cleaned.X, dtype="float32")   # keep what was measured
+cleaned.X = values                                               # and swap in the normalised
+cleaned.var["column"] = marker_cols        # the channel-and-round name, so nothing is lost
+cleaned.var_names = marker_names
+
+cleaned.uns["provenance"] = {
+    **cleaned.uns["provenance"],
     "features": f"{len(marker_cols)} marker mean intensities, decoded from 4,464 raw columns",
     "X": ("log2(x + 1); origin = median of the DMSO+PBS cells at the first timepoint, "
           "unit = SD of control cells about their own vehicle x timepoint median"),
     "layers_raw": "mean intensity as measured",
-    "units": "control-cell standard deviations",
+    "units": "X in control-cell SDs; obs measurements in pixels and ratios",
 }
-for key, value in cleaned.uns["provenance"].items():
-    print(f"  {key:18s} {value}")
-
-# %% [markdown]
-# ### Save
+cleaned
 
 # %%
+# One row per well, averaged from the normalised cells -- the replicate unit that every
+# statistical test in Part 4 runs on.
+normalised = analysis.by_well(cleaned)
+
 cleaned.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
 normalised.to_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-cleaned
+print(f"  mcs2026_clean.h5ad    {cleaned.n_obs:,} cells x {cleaned.n_vars} markers, normalised")
+print(f"  mcs2026_wells.parquet {len(normalised):>7} wells x {cleaned.n_vars} markers")
 
 # %% [markdown]
 # :::{tip}
-# **Two files, two jobs.** `mcs2026_clean.h5ad` is one row per **cell** — embeddings,
-# clustering, single-cell distributions. `mcs2026_wells.parquet` is one row per **well**,
-# already averaged — every statistical test, because the well is what was independently
-# treated. Reaching for the wrong one is the single most common mistake in Part 3, and
-# [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
+# **Three files, three jobs.**
+#
+# - `mcs2026_clean.h5ad` — one row per **cell**: embeddings, clustering, single-cell
+#   distributions. This is what Stage 2 opens.
+# - `mcs2026_wells.parquet` — one row per **well**, already averaged: every statistical test,
+#   because the well is what was independently treated.
+# - `mcs2026_full.h5ad` — the archive, every column as measured: for when a question needs
+#   texture, a shape feature this chapter dropped, or the population columns.
+#
+# Reaching for the cell table when you want the well table is the single most common mistake in
+# Part 3, and [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
 # :::
 
 # %% [markdown]
@@ -660,8 +651,8 @@ cleaned
 # | **started with** | 733,556 × 4,464, `var` empty, 13.1 GB |
 # | **removed** | border cells (~11%), one well, redundant DAPI and duplicated structural blocks |
 # | **ended with** | `mcs2026_clean.h5ad` — every surviving cell × 38 named markers |
-# | **units** | control-cell SDs, from a fixed origin at the first timepoint |
-# | **and** | `mcs2026_wells.parquet`, the same thing averaged to one row per well |
+# | **units** | `X` in control-cell SDs, from a fixed origin at the first timepoint; `obs` measurements as measured |
+# | **and** | `mcs2026_wells.parquet`, the same thing averaged per well, and `mcs2026_full.h5ad`, the archive |
 #
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour
@@ -674,8 +665,9 @@ cleaned
 # ### 1. What does a moving origin cost you?
 #
 # Re-run the normalisation the way this chapter argues against — each timepoint centred on
-# its own controls — and compare. Does the INK128 / p-S6 result survive? What happens to
-# the controls themselves?
+# its own controls — and compare. What happens to the controls' own trajectory? And would a
+# comparison between a treatment and its control at the *same* timepoint notice the
+# difference?
 
 # %% [markdown]
 # :::{admonition} Solution
@@ -695,9 +687,9 @@ cleaned
 #     print(value, round(float(np.abs(np.median(block, axis=0)).mean()), 3))
 # ```
 #
-# **The drug result survives untouched.** `compare_to_control` compares treated against
-# control *within* a timepoint, and a shared offset cancels in a difference — the ranks do
-# not move, so the p-values are identical either way.
+# **Any single-timepoint comparison survives untouched.** Part 4 compares a treatment against
+# its control *within* a timepoint, and a shared offset cancels in a difference — the ranks do
+# not move, so the p-values come out identical either way.
 #
 # What disappears is the controls' trajectory: every timepoint now prints ~0, because that
 # is what you asked for. The cost is invisible in any single-timepoint comparison, which is

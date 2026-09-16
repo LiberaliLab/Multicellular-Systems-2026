@@ -33,7 +33,7 @@
 #
 # :::{note}
 # **No scaling step here, and no sampling.** Stage 1 already did the first —
-# [Step 19](../1_preparation/03_normalisation.ipynb) put every value in control-cell SD
+# [Step 18](../1_preparation/03_normalisation.ipynb) put every value in control-cell SD
 # units — and the second is not needed:
 # [chapter 04](../1_preparation/04_subsetting_and_sketching.ipynb) cut the data to the two
 # control conditions, which is small enough to use **every cell of**. This chapter opens

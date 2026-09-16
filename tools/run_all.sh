@@ -15,6 +15,12 @@
 #
 # 01_columns_to_markers needs the full 13 GB feature table; the others read what
 # the chapter before them wrote.
+#
+# DISK. Chapter 03 writes mcs2026_full.h5ad -- every surviving cell x all 2,587
+# surviving columns, as measured -- which supersedes the mcs2026_qc.h5ad that
+# chapter 02 hands it: same values, plus the enriched obs and a provenance record.
+# Once Stage 1 has run end to end, mcs2026_qc.h5ad is a disposable intermediate, so
+# deleting it keeps total disk flat rather than carrying two ~7 GB copies.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python}"
