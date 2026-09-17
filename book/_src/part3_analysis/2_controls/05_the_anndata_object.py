@@ -15,7 +15,7 @@
 # %% [markdown]
 # # 05 · The AnnData object
 #
-# Stage 1 built five files and this stage opens one of them. Ten minutes spent on **what is
+# Stage 1 built seven files and this stage opens one of them. Ten minutes spent on **what is
 # actually in it** saves an afternoon later, because almost every confusing error in
 # single-cell analysis is really a question about which slot something lives in.
 #
@@ -253,7 +253,7 @@ paths = {
     "controls  (this stage)":       DATA / "mcs2026_controls.h5ad",
     "intensity (all cells)":        DATA / "mcs2026_intensity.h5ad",
     "sketch    (all 18, reduced)":  DATA / "mcs2026_sketch.h5ad",
-    "slim      (wide, 2,587 cols)": DATA / "mcs2026_slim.h5ad",
+    "full      (wide, 2,587 cols)": DATA / "mcs2026_full.h5ad",
 }
 pd.DataFrame([
     {"file": path.name, "MB on disk": round(path.stat().st_size / 1e6, 1)}
@@ -266,7 +266,7 @@ pd.DataFrame([
 # | `mcs2026_controls.h5ad` | cell | **you are in Stage 2.** DMSO and PBS, every cell of them |
 # | `mcs2026_intensity.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
 # | `mcs2026_sketch.h5ad` | cell | you are embedding all 18 conditions and 653,000 cells will not fit |
-# | `mcs2026_slim.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
+# | `mcs2026_full.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
 #
 # :::{important}
 # **Stage 2 opens the controls and nothing else.** Every method in the chapters that follow

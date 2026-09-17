@@ -392,7 +392,7 @@ def fig_clean_object(c) -> str:
                   "One read_h5ad, and every later chapter starts with no set-up.",
                   fill=c["fg"], size=13))
     b.append(text(48, H - 22,
-                  "The wide 2,587-column table stays on disk as mcs2026_slim.h5ad.",
+                  "The wide 2,587-column table stays on disk as mcs2026_full.h5ad.",
                   fill=c["muted"], size=12.5))
     return svg(W, H, b, c)
 

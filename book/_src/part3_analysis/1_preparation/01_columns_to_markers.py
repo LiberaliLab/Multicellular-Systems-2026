@@ -129,8 +129,12 @@ decode.structure_report(var)
 # *arranged* within a cell — whether a signal is smooth or punctate, clustered or
 # uniform. For organelle markers that is exactly the interesting part: a lysosome marker
 # is not informative because it is bright, but because it is *speckled*.
+#
 # :::{important}
-# However, taken into account that `Haralick features` and `Laws Texture Energies` are extremely hard to interpret. Therefore, we will provide an anndata object with and without these features for your analysis.
+# `Haralick features` and `Laws Texture Energies` are, however, extremely hard to
+# interpret. That is why Stage 1 ends with two objects: `mcs2026_intensity.h5ad` without
+# them and `mcs2026_full.h5ad` with them.
+# :::
 #
 # **Intensity is only 6.5%** — the five familiar summary statistics per channel-round.
 #

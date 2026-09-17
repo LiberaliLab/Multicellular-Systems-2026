@@ -102,10 +102,9 @@ print(f"{adata.n_obs:,} cells -> {clean.n_obs:,} "
 
 # %% [markdown]
 # :::{note}
-# We keep the internal-border cells. They sit on a seam between two imaged fields of the
-# same well, where the image is still complete — the flag marks a stitching boundary, not
-# a truncated cell. Dropping them too is defensible; dropping them *without saying so* is
-# not.
+# All border cells go. `is_border_internal` turns out to be a subset of
+# `is_border_external`, so filtering on the external flag removes both and the
+# distinction never arises.
 # :::
 
 # %% [markdown]

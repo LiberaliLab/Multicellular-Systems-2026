@@ -411,7 +411,7 @@ fig.tight_layout()
 # %% [markdown]
 # ### Which columns go in it?
 #
-# 2,587 features survived Step 9. The object carries **38** of them — one mean intensity per
+# 2,587 features survived Step 9. The normalized object (`values`) carries **38** of them — one mean intensity per
 # antibody per cell. That is a large cut and it needs an argument, not a preference.
 
 # %%
@@ -443,7 +443,7 @@ print(f"  {', '.join(marker_names[:10])} …")
 full_adata
 
 # %% [markdown]
-# ### Build it
+# ### Build new anndata object
 #
 # **You already have the object.** `full_adata` is an `AnnData` — every surviving cell × every
 # surviving feature — so nothing here is built from scratch. This step does two things to it:
@@ -531,7 +531,7 @@ full_adata.uns["provenance"] = {
     "built_by": "Multicellular Systems 2026, Part 3 Stage 1, chapter 03",
     "built_on": date.today().isoformat(),
     "layout_workbook": LAYOUT_XLSX.name,
-    "cells_removed": "border cells — is_border_external or is_border_internal",
+    "cells_removed": "border cells — is_border_external (which subsumes is_border_internal)",
     "wells_removed": "; ".join(f"{w}: {why}" for w, why in full_adata.uns["dropped_wells"].items()),
 }
 
@@ -560,7 +560,7 @@ full_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_full.h5ad"), compression="gzi
 # visible.
 
 # %% [markdown]
-# ### Now we can create a new anndata with only the intensity features and normalized
+# ### Now we can create a new anndata with only the intensity features normalized
 
 # %% [markdown]
 # We duplicate our data but only including intensities in the X 
@@ -587,7 +587,7 @@ intensity_adata
 #
 
 # %%
-intensity_adata.layers["raw"] = intensity_adata.X.astype("float32")  # a real copy, not a view
+intensity_adata.layers["raw"] = intensity_adata.X.astype("float32")  
 intensity_adata.X = normalised_intensities                           # swap in the normalised numbers
 intensity_adata.var["column"] = marker_cols                          # keep the channel-and-round name
 intensity_adata.var_names = marker_names                             # and show the marker instead
@@ -612,16 +612,16 @@ intensity_adata
 intensity_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_intensity.h5ad"), compression="gzip")
 print(f"  mcs2026_intensity.h5ad  {intensity_adata.n_obs:,} cells x {intensity_adata.n_vars} markers, normalised")
 
-# Every statistical test in Part 4 works on well means rather than cells, because the well is
-# what was independently treated. That table is not a fourth file -- it is one groupby on the
-# object you just wrote, and this is the line the later chapters use, where the course package
-# is no longer imported:
+# %% [markdown]
+# ##### How to turn anndata cell information into well information
+
+# %%
 wells = (intensity_adata.to_df()
          .groupby([intensity_adata.obs.condition.astype(str),
                    intensity_adata.obs.timepoint_h.astype(int),
                    intensity_adata.obs.well.astype(str)], observed=True).mean()
          .rename_axis(["condition", "timepoint", "well"]).reset_index())
-wells.iloc[:4, :6].round(2)
+wells.round(2)
 
 # %% [markdown]
 # #### A third object, if you want shape in the analysis
@@ -721,8 +721,15 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # embedding in chapters 06–10 is unchanged by its existence. It is here for questions that need
 # shape and intensity in the same space — and `var["family"]` separates the two blocks, so you
 # can always ask what a component is made of.
+#
+# ---
+#
 
 # %% [markdown]
+#
+#
+# ## Summary
+#
 # :::{tip}
 # **Three files, three jobs.**
 #
@@ -740,8 +747,7 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # wherever you need it, so it can never go stale against the object it came from — and it needs
 # nothing but pandas, which is why the later chapters can build it without the course package.
 # :::
-
-# %% [markdown]
+#
 # ## Stage 1 complete
 #
 # | | |
@@ -752,99 +758,12 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # | **units** | `X` in control-cell SDs, from a fixed origin at the first timepoint; `obs` measurements as measured |
 # | **and** | `mcs2026_full.h5ad` as the archive, and `mcs2026_intensity_shape.h5ad` with shape in `X` |
 #
+#
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour
 # graph can be built on, without throwing away the rare cells.
 #
 # ---
-#
-# ## Exercises
-#
-# ### 1. What does a moving origin cost you?
-#
-# Re-run the normalisation the way this chapter argues against — each timepoint centred on
-# its own controls — and compare. What happens to the controls' own trajectory? And would a
-# comparison between a treatment and its control at the *same* timepoint notice the
-# difference?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# Normalising each timepoint as if it were its own experiment is exactly the old recipe,
-# because within a single timepoint "the first timepoint" is that timepoint:
-#
-# ```python
-# per_timepoint = np.zeros_like(normalised_intensities)
-# for value in sorted(set(timepoint)):
-#     rows = timepoint == value
-#     per_timepoint[rows] = analysis.normalise_cells(full_adata[rows], marker_cols)
-#
-# for value in sorted(set(timepoint)):
-#     block = per_timepoint[controls & (timepoint == value)]
-#     print(value, round(float(np.abs(np.median(block, axis=0)).mean()), 3))
-# ```
-#
-# **Any single-timepoint comparison survives untouched.** Part 4 compares a treatment against
-# its control *within* a timepoint, and a shared offset cancels in a difference — the ranks do
-# not move, so the p-values come out identical either way.
-#
-# What disappears is the controls' trajectory: every timepoint now prints ~0, because that
-# is what you asked for. The cost is invisible in any single-timepoint comparison, which is
-# precisely why it is easy to ship. It only shows up later, in
-# [chapter 10](../2_controls/10_diffusion_map.ipynb), when a trajectory is supposed to run
-# from 36 h to 84 h and there is nothing left for it to run along.
-# :::
-
-# %% [markdown]
-# ### 2. Should both vehicles be in the reference?
-#
-# The origin is the average of the DMSO and PBS medians. Rebuild it from DMSO alone and
-# see which markers move, and by how much.
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# dmso_only = analysis.normalise_cells(full_adata, marker_cols, controls=("DMSO",))
-# moved = pd.Series(np.median(dmso_only, axis=0) - np.median(normalised_intensities, axis=0), index=names)
-# print(moved.abs().sort_values(ascending=False).head(5).round(2))
-# ```
-#
-# The markers that move are the ones where the two vehicles disagree, and the shift is
-# about half the gap between them — because two references average, and one does not.
-#
-# Both choices are defensible. Both vehicles gives more reference cells and covers seven
-# plate rows instead of four; DMSO alone ties zero to the solvent the compounds were
-# actually dissolved in, which is the comparison a pharmacologist would want. What is not
-# defensible is not knowing which one you did — which is why it is written into
-# `uns["provenance"]` rather than left in a notebook.
-# :::
-
-# %% [markdown]
-# ### 3. How large is a real effect, in this experiment?
-#
-# Using `analysis.rank_effects`, list the ten largest condition × marker shifts. How many
-# exceed 3 control SDs? Compare that with the unit those SDs are measured in — Step 17
-# sets one control SD to the standard deviation of the control cells about their own group,
-# so a shift of 3 means three times the spread of a single untreated cell.
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# ranked = analysis.rank_effects(analysis.by_well(intensity_adata), names)
-# print(ranked.head(10).round(2))
-# print(f"beyond 3 control SDs: {(ranked.abs_shift > 3).sum()} of {len(ranked)}")
-# ```
-#
-# A handful of pairs exceed 3 SDs and most sit well under 1. That ratio is the honest
-# picture of a screen: a few strong, specific effects against a background of very little,
-# and it is why ranking by effect size in control SDs is more informative than sorting by
-# p-value.
-# :::
 
 # %% [markdown]
 # ---

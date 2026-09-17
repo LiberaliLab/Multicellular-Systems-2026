@@ -34,5 +34,5 @@
   <text x="616" y="354" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11" font-weight="400" fill="#16233d" text-anchor="start">units</text>
   <text x="616" y="384" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#c4622d" text-anchor="start" font-style="italic">why, not just what</text>
   <text x="48" y="426" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#16233d" text-anchor="start">One read_h5ad, and every later chapter starts with no set-up.</text>
-  <text x="48" y="448" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#5d6b85" text-anchor="start">The wide 2,587-column table stays on disk as mcs2026_slim.h5ad.</text>
+  <text x="48" y="448" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#5d6b85" text-anchor="start">The wide 2,587-column table stays on disk as mcs2026_full.h5ad.</text>
 </svg>

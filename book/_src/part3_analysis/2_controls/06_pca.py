@@ -301,7 +301,7 @@ cells
 # %% [markdown]
 # ### 2. What happens with all 2,587 features?
 #
-# Re-run the PCA on `mcs2026_qc.h5ad` — every surviving column instead of the 38 markers.
+# Re-run the PCA on `mcs2026_full.h5ad` — every surviving column instead of the 38 markers.
 # How much variance does PC1 take, and what loads on it?
 
 # %% [markdown]
