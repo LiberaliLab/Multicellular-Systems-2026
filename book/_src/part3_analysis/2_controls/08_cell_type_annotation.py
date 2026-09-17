@@ -32,25 +32,37 @@
 # | **5** | Project the labels onto all 653,000 cells |
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from sklearn.neighbors import KNeighborsClassifier
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 print(f"{cells.n_obs:,} control cells x {cells.n_vars} markers")
 print(f"  obsm: {list(cells.obsm)}   obsp: {list(cells.obsp)}")
+
+def transfer_labels(source, labels, target, k=15):
+    """Label each target cell by a majority vote of its k nearest source cells."""
+    model = KNeighborsClassifier(n_neighbors=min(k, len(source)))
+    model.fit(source, np.asarray(labels))
+    return model.predict(target)
+
+
 
 # %% [markdown]
 # ## 1 · The graph you already have
@@ -64,7 +76,7 @@ print(f"  obsm: {list(cells.obsm)}   obsp: {list(cells.obsp)}")
 # chapters 09 and 10.
 
 # %%
-identity = panels.resolve_panel(cells.var, "identity", verbose=False)
+identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"  {len(identity)} markers: {', '.join(cells.var.loc[identity, 'marker'])}")
 print(f"  graph: {cells.obsp['connectivities'].nnz:,} edges over {cells.n_obs:,} cells")
 print(f"  obsm : {list(cells.obsm)}")
@@ -245,7 +257,7 @@ train, test = order[: int(0.8 * cells.n_obs)], order[int(0.8 * cells.n_obs):]
 space = cells.obsm["X_identity"]
 labels = cells.obs.cell_state.astype(str).values
 
-predicted = analysis.transfer_labels(space[train], labels[train], space[test])
+predicted = transfer_labels(space[train], labels[train], space[test])
 accuracy = (predicted == labels[test]).mean()
 print(f"  held-out accuracy: {accuracy:.1%} on {len(test):,} control cells")
 print(pd.crosstab(pd.Series(labels[test], name="annotated"),
@@ -257,9 +269,9 @@ print(pd.crosstab(pd.Series(labels[test], name="annotated"),
 # ones, which contribute least to the average.
 
 # %%
-full = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+full = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
 full.obs["cell_state"] = pd.Categorical(
-    analysis.transfer_labels(space, labels, np.asarray(full[:, identity].X)),
+    transfer_labels(space, labels, np.asarray(full[:, identity].X)),
     categories=assigned,
 )
 
@@ -291,8 +303,8 @@ pd.DataFrame({
 # ## 6 · Save
 
 # %%
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
-full.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+full.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
 print(f"  controls : {cells.n_obs:,} cells, obs['cell_state'] + clusters + embeddings")
 print(f"  clean    : {full.n_obs:,} cells, obs['cell_state'] projected from the controls")
 
@@ -373,7 +385,7 @@ print(f"  clean    : {full.n_obs:,} cells, obs['cell_state'] projected from the 
 # t = per_well.loc[per_well.condition == "MK-2206", "cell_state"]
 # c = per_well.loc[per_well.condition == "DMSO", "cell_state"]
 # print("wells:", stats.mannwhitneyu(t, c).pvalue,
-#       " floor:", analysis.minimum_p(len(t), len(c)))
+#       " floor:", 2 / comb(len(t) + len(c), len(t)))
 # ```
 #
 # The gap is enormous — many orders of magnitude — and only one of the two numbers is

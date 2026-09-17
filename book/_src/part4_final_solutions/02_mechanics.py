@@ -28,7 +28,8 @@
 # biology change.
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import anndata as ad
@@ -36,21 +37,86 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
+    """A figure with `n` axes on a grid, the unused ones removed."""
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False,
+                             figsize=(size[0] * ncols, size[1] * nrows))
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.remove()
+    return fig, flat[:n]
 pd.set_option("display.width", 140)
+
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
 THEME = "mechanics"
 
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
-markers = analysis.panel_markers(THEME, wells.columns)
+cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
+markers = [m for m in cells.uns["panels"][THEME] if m in set(wells.columns)]
 print(f"{len(markers)} markers: {', '.join(markers)}")
+
+def effect_table(wells, markers, control="DMSO", by_timepoint=True):
+    """Mean shift from the control, per condition and marker, in control SDs.
+
+    The control is subtracted explicitly. Skipping it looks safe -- the
+    normalisation puts the controls near zero -- but that only holds at the one
+    timepoint the origin came from; everywhere else a plain group mean would
+    report the controls' own development as a treatment effect.
+    """
+    if by_timepoint:
+        table = wells.groupby(["condition", "timepoint"], observed=True)[markers].mean()
+        reference = (wells[wells.condition == control]
+                     .groupby("timepoint", observed=True)[markers].mean())
+        matched = reference.reindex(table.index.get_level_values("timepoint"))
+        return (table - matched.to_numpy()).drop(index=control, level=0, errors="ignore")
+    table = wells.groupby("condition", observed=True)[markers].mean()
+    return (table - wells.loc[wells.condition == control, markers].mean()
+            ).drop(index=control, errors="ignore")
+
+def rank_effects(wells, markers, control="DMSO", drop=None):
+    """Every condition x marker pair, ranked by absolute shift.
+
+    `p_floor` is the smallest p-value this design can produce: with n treated
+    and m control wells there are C(n+m, n) orderings, so a two-sided
+    Mann-Whitney can never go below 2/C(n+m, n). A row sitting at the floor is
+    not more significant than another row at the floor, whatever its effect size.
+    """
+    frame = wells if drop is None else wells[wells.condition != drop]
+    reference = frame[frame.condition == control]
+    rows = []
+    for condition, block in frame.groupby("condition", observed=True):
+        if condition == control:
+            continue
+        for marker in markers:
+            treated, base = block[marker].dropna(), reference[marker].dropna()
+            if len(treated) < 3 or len(base) < 3:
+                continue
+            rows.append({"condition": condition, "marker": marker,
+                         "shift": treated.mean() - base.mean(), "n_wells": len(treated),
+                         "p": stats.mannwhitneyu(treated, base).pvalue,
+                         "p_floor": 2 / comb(len(treated) + len(base), len(treated))})
+    out = pd.DataFrame(rows)
+    out["abs_shift"] = out["shift"].abs()
+    out["at_p_floor"] = np.isclose(out["p"], out["p_floor"])
+    return out.sort_values("abs_shift", ascending=False).reset_index(drop=True)
+
+OUTLIER = cells.obs.condition[cells.obs.is_outlier_condition].astype(str).iloc[0]
+
 
 # %%
 lookup = cells.var[cells.var.marker.isin(markers) & (cells.var.statistic == "mean_intensity")]
@@ -65,8 +131,8 @@ lookup[["marker", "round", "channel"]].sort_values("round").reset_index(drop=Tru
 # leaving it in would make every heatmap a picture of PMA.
 
 # %%
-effects = analysis.effect_table(wells, markers, by_timepoint=False)
-effects = effects.drop(index=analysis.OUTLIER_CONDITION, errors="ignore")
+effects = effect_table(wells, markers, by_timepoint=False)
+effects = effects.drop(index=OUTLIER, errors="ignore")
 order = effects.abs().mean(axis=1).sort_values(ascending=False).index
 
 fig, ax = plt.subplots(figsize=(8.5, 5.5))
@@ -84,7 +150,7 @@ fig.tight_layout()
 # ## Ranked effects
 
 # %%
-ranked = analysis.rank_effects(wells, markers)
+ranked = rank_effects(wells, markers, drop=OUTLIER)
 ranked.head(12).round(3)
 
 # %% [markdown]
@@ -108,7 +174,7 @@ ranked.head(12).round(3)
 # ## An embedding of this theme alone
 
 # %%
-usable = wells[wells.condition != analysis.OUTLIER_CONDITION]
+usable = wells[wells.condition != OUTLIER]
 space = ad.AnnData(usable[markers].fillna(0).to_numpy(dtype="float32"))
 sc.pp.pca(space, n_comps=4, random_state=0)
 coords, variance = space.obsm["X_pca"], space.uns["pca"]["variance_ratio"]
@@ -157,7 +223,7 @@ frame = pd.DataFrame({
     "timepoint": cells.obs.timepoint_h.astype(int).values,
 })
 
-fig, axes = plotting.panel_grid(4, ncols=4, size=(3.3, 2.9))
+fig, axes = panel_grid(4, ncols=4, size=(3.3, 2.9))
 for ax, timepoint in zip(axes, [36, 48, 60, 84]):
     block = frame[frame.timepoint == timepoint]
     for name, colour in [("DMSO", "0.35"), (condition, "firebrick")]:
@@ -174,11 +240,11 @@ fig.tight_layout()
 # ## One number for the theme
 
 # %%
-summary = analysis.theme_summary(wells, markers)
-summary.drop(index=analysis.OUTLIER_CONDITION, errors="ignore").head(8).round(2)
+summary = effect_table(wells, markers, by_timepoint=False).abs().mean(axis=1).sort_values(ascending=False)
+summary.drop(index=OUTLIER, errors="ignore").head(8).round(2)
 
 # %%
-summary.to_frame(THEME).to_parquet(H5AD_SLIM.with_name(f"theme_{THEME}.parquet"))
+summary.to_frame(THEME).to_parquet(DATA / f"theme_{THEME}.parquet")
 print(f"saved theme summary for {THEME}")
 
 # %% [markdown]

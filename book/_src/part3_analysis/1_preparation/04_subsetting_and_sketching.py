@@ -45,25 +45,44 @@
 # | **5** | Check what you kept, and save |
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from geosketch import gs
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers "
       f"({cells.n_obs * cells.n_vars * 4 / 1e9:.2f} GB as float32)")
+
+def stratified(obs, n, by=("condition", "timepoint_h"), seed=0):
+    """An equal draw from every condition x timepoint, rather than the front of the file."""
+    rng = np.random.default_rng(seed)
+    groups = obs.groupby(list(by), observed=True).indices
+    per_group = max(1, n // max(len(groups), 1))
+    return np.sort(np.concatenate([
+        rng.choice(rows, size=min(per_group, len(rows)), replace=False)
+        for rows in groups.values()]))
+
+def sketch(matrix, n, seed=0):
+    """Geometric sketching: cover the *space* evenly, so rare cells survive."""
+    return np.sort(np.asarray(gs(matrix, n, seed=seed, replace=False), dtype=int))
+
+
 
 # %% [markdown]
 # ## 1 · Subset by marker
@@ -87,7 +106,7 @@ cells.var.groupby("theme", observed=True).agg(
 # readout; the lamins are organelle and mechanics both.
 
 # %%
-organelle_markers = panels.resolve_panel(cells.var, "organelles")
+organelle_markers = [m for m in cells.uns["panels"]["organelles"] if m in set(cells.var_names)]
 print(f"  organelles: {len(organelle_markers)} markers")
 cells.var.loc[organelle_markers, ["marker", "round", "channel"]]
 
@@ -111,7 +130,7 @@ print(f"  {len(chosen)} columns: {chosen}")
 # :::
 
 # %%
-wide_var = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"), backed="r").var
+wide_var = sc.read_h5ad(DATA / "mcs2026_qc.h5ad", backed="r").var
 mine = wide_var[wide_var.marker.isin(my_markers)]
 print(f"  in the clean object : {len(chosen):5d} columns")
 print(f"  in the wide table   : {len(mine):5d} columns")
@@ -156,7 +175,7 @@ print(f"  60 and 84 h only: {late.n_obs:,} cells, "
 # :::{important}
 # **Keep the controls.** Every value in `X` is a distance from the control cells at the
 # *first* timepoint, and every comparison you will make is against controls at the matching
-# timepoint — `analysis.effect_table` subtracts them for you. A subset without controls
+# timepoint — `effect_table` subtracts them for you. A subset without controls
 # cannot be compared, cannot be re-normalised, and cannot be plotted on a meaningful axis.
 #
 # The same goes for timepoints: keep at least two, or you cannot say anything changed.
@@ -185,7 +204,7 @@ print(f"    timepoints: {sorted(naive.obs.timepoint_h.astype(int).unique().tolis
 # %%
 rng = np.random.default_rng(0)
 uniform = np.sort(rng.choice(cells.n_obs, 8_000, replace=False))
-balanced = analysis.stratified(cells.obs, 8_000)
+balanced = stratified(cells.obs, 8_000)
 
 for name, index in [("uniform", uniform), ("stratified", balanced)]:
     obs = cells.obs.iloc[index]
@@ -227,7 +246,7 @@ matrix = np.asarray(cells.X)
 # genuine reduction when this notebook is run on a smaller extract of the plate.
 TARGET = min(30_000, cells.n_obs // 8)
 
-sketch_index = analysis.sketch(matrix, TARGET)
+sketch_index = sketch(matrix, TARGET)
 print(f"  {cells.n_obs:,} cells -> {len(sketch_index):,} ({len(sketch_index)/cells.n_obs:.0%})")
 
 # %% [markdown]
@@ -267,7 +286,7 @@ comparison = pd.DataFrame([
      "unusual kept": int(unusual[index].sum()),
      "% of the sample": round(100 * unusual[index].mean(), 1)}
     for name, index in [("uniform", uniform), ("stratified", balanced),
-                        ("geosketch", analysis.sketch(matrix, 8_000))]
+                        ("geosketch", sketch(matrix, 8_000))]
 ]).set_index("sample")
 comparison["of all unusual cells"] = (
     100 * comparison["unusual kept"] / unusual.sum()).round(1)
@@ -292,7 +311,7 @@ print(f"  100 regions: smallest holds {sizes.min():,} cells, largest {sizes.max(
 fig, ax = plt.subplots(figsize=(6, 3.4))
 labels = ["uniform", "stratified", "geosketch"]
 counts = [int(np.isin(regions[i], list(rarest)).sum())
-          for i in [uniform, balanced, analysis.sketch(matrix, 8_000)]]
+          for i in [uniform, balanced, sketch(matrix, 8_000)]]
 ax.bar(labels, counts, color=["0.65", "0.5", "#1f7a8c"])
 for x, value in enumerate(counts):
     ax.text(x, value, f"{value}", ha="center", va="bottom")
@@ -394,10 +413,10 @@ copy.uns["subset_of"] = "mcs2026_clean.h5ad"
 copy.uns["subset_conditions"] = my_conditions
 copy.uns["subset_theme"] = "organelles"
 
-controls.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
-sketch.write_h5ad(H5AD_SLIM.with_name("mcs2026_sketch.h5ad"), compression="gzip")
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
-copy.write_h5ad(H5AD_SLIM.with_name("my_subset.h5ad"), compression="gzip")
+controls.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+sketch.write_h5ad(DATA / "mcs2026_sketch.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
+copy.write_h5ad(DATA / "my_subset.h5ad", compression="gzip")
 
 print(f"  mcs2026_controls.h5ad {controls.n_obs:>7,} cells   <- Stage 2 opens this")
 print(f"  mcs2026_sketch.h5ad   {sketch.n_obs:>7,} cells   <- Part 4 opens this")
@@ -412,8 +431,7 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # | `mcs2026_clean.h5ad` | cell | the full, normalised, annotated dataset |
 # | `mcs2026_controls.h5ad` | cell | DMSO and PBS, all of them — **Stage 2** |
 # | `mcs2026_sketch.h5ad` | cell | ~30,000 covering all 18 conditions — Part 4 |
-# | `mcs2026_wells.parquet` | well | every statistical test |
-# | `mcs2026_slim.h5ad` | cell | the wide 2,587-column archive, for texture questions |
+# | `mcs2026_full.h5ad` | cell | the wide 2,587-column archive, for texture questions |
 #
 # [Stage 2](../2_controls/intro.md) opens the controls and learns every method on them.
 #
@@ -432,10 +450,10 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 #
 # ```python
 # theme = "signaling"          # or mechanics / metabolism / organelles
-# mine = cells[:, panels.resolve_panel(cells.var, theme)].copy()
+# mine = cells[:, [m for m in cells.uns["panels"][theme] if m in set(cells.var_names)]].copy()
 # mine.uns["subset_theme"] = theme
 # print(describe_subset(mine))
-# mine.write_h5ad(H5AD_SLIM.with_name(f"{theme}.h5ad"), compression="gzip")
+# mine.write_h5ad(DATA / f"{theme}.h5ad", compression="gzip")
 # ```
 #
 # Keeping every condition matters more than keeping every cell: you cannot add a condition
@@ -454,11 +472,11 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # :class: dropdown
 #
 # ```python
-# wide = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"))
+# wide = sc.read_h5ad(DATA / "mcs2026_qc.h5ad")
 # raw = np.log2(np.asarray(wide.X) + 1)
-# straight = analysis.sketch(raw, 8_000)
+# straight = sketch(raw, 8_000)
 # space = ad.AnnData(raw); sc.pp.pca(space, n_comps=50, random_state=0)
-# reduced = analysis.sketch(space.obsm["X_pca"], 8_000)
+# reduced = sketch(space.obsm["X_pca"], 8_000)
 # print(f"overlap: {len(set(straight) & set(reduced)):,} of 8,000")
 # ```
 #
@@ -481,7 +499,7 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # :::{admonition} Solution
 # :class: dropdown
 #
-# `analysis.effect_table` drops the control row and has nothing to centre on, so you get
+# `effect_table` drops the control row and has nothing to centre on, so you get
 # either an empty frame or all-NaN — depending on the path, possibly with no error at all.
 #
 # That is the point of the exercise. A missing control does not raise; it produces numbers

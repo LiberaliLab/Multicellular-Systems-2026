@@ -35,7 +35,8 @@
 # stated.
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import anndata as ad
@@ -43,24 +44,111 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from sklearn.neighbors import KNeighborsRegressor
 from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 
-from mcs2026 import analysis, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
+    """A figure with `n` axes on a grid, the unused ones removed."""
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False,
+                             figsize=(size[0] * ncols, size[1] * nrows))
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.remove()
+    return fig, flat[:n]
 pd.set_option("display.width", 150)
 
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
-sketch = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_sketch.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
+sketch = sc.read_h5ad(DATA / "mcs2026_sketch.h5ad")
 names = [c for c in wells.columns if c not in ("condition", "timepoint", "well")]
 
 print(f"  wells : {len(wells)} x {len(names)} markers, in control-SD units")
 print(f"  cells : {cells.n_obs:,} x {cells.n_vars}")
 print(f"  sketch: {sketch.n_obs:,} cells, {list(sketch.obsm)}")
+
+def effect_table(wells, markers, control="DMSO", by_timepoint=True):
+    """Mean shift from the control, per condition and marker, in control SDs.
+
+    The control is subtracted explicitly. Skipping it looks safe -- the
+    normalisation puts the controls near zero -- but that only holds at the one
+    timepoint the origin came from; everywhere else a plain group mean would
+    report the controls' own development as a treatment effect.
+    """
+    if by_timepoint:
+        table = wells.groupby(["condition", "timepoint"], observed=True)[markers].mean()
+        reference = (wells[wells.condition == control]
+                     .groupby("timepoint", observed=True)[markers].mean())
+        matched = reference.reindex(table.index.get_level_values("timepoint"))
+        return (table - matched.to_numpy()).drop(index=control, level=0, errors="ignore")
+    table = wells.groupby("condition", observed=True)[markers].mean()
+    return (table - wells.loc[wells.condition == control, markers].mean()
+            ).drop(index=control, errors="ignore")
+
+def rank_effects(wells, markers, control="DMSO", drop=None):
+    """Every condition x marker pair, ranked by absolute shift.
+
+    `p_floor` is the smallest p-value this design can produce: with n treated
+    and m control wells there are C(n+m, n) orderings, so a two-sided
+    Mann-Whitney can never go below 2/C(n+m, n). A row sitting at the floor is
+    not more significant than another row at the floor, whatever its effect size.
+    """
+    frame = wells if drop is None else wells[wells.condition != drop]
+    reference = frame[frame.condition == control]
+    rows = []
+    for condition, block in frame.groupby("condition", observed=True):
+        if condition == control:
+            continue
+        for marker in markers:
+            treated, base = block[marker].dropna(), reference[marker].dropna()
+            if len(treated) < 3 or len(base) < 3:
+                continue
+            rows.append({"condition": condition, "marker": marker,
+                         "shift": treated.mean() - base.mean(), "n_wells": len(treated),
+                         "p": stats.mannwhitneyu(treated, base).pvalue,
+                         "p_floor": 2 / comb(len(treated) + len(base), len(treated))})
+    out = pd.DataFrame(rows)
+    out["abs_shift"] = out["shift"].abs()
+    out["at_p_floor"] = np.isclose(out["p"], out["p_floor"])
+    return out.sort_values("abs_shift", ascending=False).reset_index(drop=True)
+
+def compare_to_control(wells, marker, condition, control="DMSO"):
+    """One marker, one condition, per timepoint, against the control wells."""
+    rows = []
+    for timepoint, block in wells.groupby("timepoint", observed=True):
+        treated = block.loc[block.condition == condition, marker].dropna()
+        base = block.loc[block.condition == control, marker].dropna()
+        if len(treated) < 2 or len(base) < 2:
+            continue
+        rows.append({"timepoint": timepoint, "n_treated": len(treated),
+                     "n_control": len(base),
+                     "shift": round(treated.mean() - base.mean(), 2),
+                     "p": round(stats.mannwhitneyu(treated, base).pvalue, 4),
+                     "p_floor": round(2 / comb(len(treated) + len(base), len(treated)), 4)})
+    return pd.DataFrame(rows)
+
+OUTLIER = cells.obs.condition[cells.obs.is_outlier_condition].astype(str).iloc[0]
+
+def transfer_values(source, values, target, k=15):
+    """Average a continuous value over the k nearest source cells."""
+    model = KNeighborsRegressor(n_neighbors=min(k, len(source)))
+    model.fit(source, np.asarray(values, dtype="float64"))
+    return model.predict(target)
+
+
 
 # %% [markdown]
 # ## 1 · Check what you were handed
@@ -111,8 +199,8 @@ pd.DataFrame([
 # showed it moves everything, so leaving it in would flatten the colour scale for the rest.
 
 # %%
-effects = analysis.effect_table(wells, names, by_timepoint=False)
-effects = effects.drop(index=analysis.OUTLIER_CONDITION, errors="ignore")
+effects = effect_table(wells, names, by_timepoint=False)
+effects = effects.drop(index=OUTLIER, errors="ignore")
 order_rows = effects.abs().mean(axis=1).sort_values(ascending=False).index
 order_cols = effects.abs().mean(axis=0).sort_values(ascending=False).index
 matrix = effects.loc[order_rows, order_cols]
@@ -175,7 +263,7 @@ fig.tight_layout()
 # ## 4 · Rank the effects — and read the p-values honestly
 
 # %%
-ranked = analysis.rank_effects(wells, names)
+ranked = rank_effects(wells, names, drop=OUTLIER)
 ranked.head(15).round(3)
 
 # %%
@@ -206,7 +294,7 @@ print(f"  the floor here is {ranked.p_floor.min():.2e}  "
 
 # %%
 per_timepoint = pd.concat([
-    analysis.compare_to_control(wells, marker, condition).assign(
+    compare_to_control(wells, marker, condition).assign(
         condition=condition, marker=marker)
     for condition, marker in [("Sapanisertib/INK128", "p-S6"), ("MK-2206", "p-S6"),
                               ("RA", "SOX17"), ("Cycloheximide", "beta-Catenin")]
@@ -238,13 +326,13 @@ per_timepoint[["condition", "marker", "timepoint", "n_treated", "shift", "p", "p
 # them.
 
 # %%
-by_time = analysis.effect_table(wells, names, by_timepoint=True)
-by_time = by_time.drop(index=analysis.OUTLIER_CONDITION, level=0, errors="ignore")
+by_time = effect_table(wells, names, by_timepoint=True)
+by_time = by_time.drop(index=OUTLIER, level=0, errors="ignore")
 
 focus = ["Sapanisertib/INK128", "MK-2206", "RA", "Cycloheximide"]
 show = [m for m in ["p-S6", "Foxo1", "SOX17", "beta-Catenin", "LaminB1", "HSP90"] if m in names]
 
-fig, axes = plotting.panel_grid(len(focus), ncols=2, size=(5.2, 3.2))
+fig, axes = panel_grid(len(focus), ncols=2, size=(5.2, 3.2))
 for ax, condition in zip(axes, focus):
     block = by_time.loc[condition]
     for marker in show:
@@ -273,9 +361,8 @@ fig.tight_layout()
 # [chapter 04](../part3_analysis/1_preparation/04_subsetting_and_sketching.ipynb) made one.
 
 # %%
-from mcs2026 import panels
 
-identity = panels.resolve_panel(sketch.var, "identity", verbose=False)
+identity = [m for m in sketch.uns["panels"]["identity"] if m in set(sketch.var_names)]
 sketch.obsm["X_identity"] = np.asarray(sketch[:, identity].X)
 
 sc.pp.pca(sketch, n_comps=20, random_state=0)
@@ -301,7 +388,7 @@ condition = sketch.obs.condition.astype(str).values
 focus = ["DMSO", "MK-2206", "Sapanisertib/INK128", "RA", "IL6",
          "Phorbol 12-myristate 13-acetate (PMA)"]
 
-fig, axes = plotting.panel_grid(len(focus), ncols=3, size=(4.0, 3.6))
+fig, axes = panel_grid(len(focus), ncols=3, size=(4.0, 3.6))
 for ax, name in zip(axes, focus):
     mask = condition == name
     ax.scatter(umap[~mask, 0], umap[~mask, 1], c="0.88", s=2)
@@ -392,8 +479,8 @@ fig.tight_layout()
 # every condition its own axis and make them incomparable by construction.
 
 # %%
-controls = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
-pseudotime = analysis.transfer_values(
+controls = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+pseudotime = transfer_values(
     controls.obsm["X_identity"],
     controls.obs.dpt_pseudotime.values,
     np.asarray(cells[:, identity].X),
@@ -472,7 +559,7 @@ pd.DataFrame([
      "DMSO %": round(100 * control_wells.mean(), 1),
      "n_wells": len(block),
      "p": round(stats.mannwhitneyu(block.past_threshold, control_wells).pvalue, 4),
-     "p_floor": round(analysis.minimum_p(len(block), len(control_wells)), 4)}
+     "p_floor": round(2 / comb(len(block) + len(control_wells), len(block)), 4)}
     for name, block in per_well.groupby("condition") if name != "DMSO"
 ]).sort_values("% past threshold").set_index("condition").round(3)
 
@@ -525,7 +612,7 @@ bridge_table = pd.DataFrame([
      "DMSO %": round(100 * control_wells.mean(), 2),
      "n_wells": len(block),
      "p": round(stats.mannwhitneyu(block.bridge_fraction, control_wells).pvalue, 4),
-     "p_floor": round(analysis.minimum_p(len(block), len(control_wells)), 4)}
+     "p_floor": round(2 / comb(len(block) + len(control_wells), len(block)), 4)}
     for name, block in per_well.groupby("condition") if name != "DMSO"
 ]).sort_values("% of cells in the bridge").set_index("condition")
 bridge_table
@@ -668,7 +755,7 @@ for name in ["MK-2206", "Sapanisertib/INK128", "RA"]:
             "DMSO %": round(100 * reference.mean(), 2),
             "n_wells": len(treated),
             "p": round(stats.mannwhitneyu(treated, reference).pvalue, 4),
-            "p_floor": round(analysis.minimum_p(len(treated), len(reference)), 4),
+            "p_floor": round(2 / comb(len(treated) + len(reference), len(treated)), 4),
         })
     print(pd.DataFrame(rows).to_string(index=False))
 
@@ -696,7 +783,7 @@ well_p = stats.mannwhitneyu(treated_wells, control_wells).pvalue
 print(f"counting CELLS:  {len(treated_cells):,} vs {len(control_cells):,}   p = {cell_p:.2e}")
 print(f"counting WELLS:  {len(treated_wells)} vs {len(control_wells)}         p = {well_p:.4f}")
 print(f"\nsmallest p the well-level design can produce: "
-      f"{analysis.minimum_p(len(treated_wells), len(control_wells)):.4f}")
+      f"{2 / comb(len(treated_wells) + len(control_wells), len(treated_wells)):.4f}")
 print(f"effect size: {100*treated_wells.mean():.1f}% vs {100*control_wells.mean():.1f}% hypoblast")
 
 # %% [markdown]
@@ -744,8 +831,8 @@ fig.tight_layout()
 # The four theme chapters all start from this table.
 
 # %%
-proportions.to_parquet(H5AD_SLIM.with_name("mcs2026_proportions.parquet"))
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
+proportions.to_parquet(DATA / "mcs2026_proportions.parquet")
+cells.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
 print(f"  mcs2026_proportions.parquet — {len(proportions)} wells")
 print(f"  mcs2026_clean.h5ad — now carries obs['pseudotime']")
 
@@ -799,9 +886,8 @@ print(f"  mcs2026_clean.h5ad — now carries obs['pseudotime']")
 #
 # ```python
 # from scipy.cluster.hierarchy import fcluster
-# from mcs2026 import panels
 # groups = pd.Series(fcluster(tree, t=4, criterion="maxclust"), index=correlation.index)
-# theme = {m: t for t in panels.THEMES for m in panels.markers(t)}
+# theme = {m: t for t in cells.uns["themes"] for m in cells.uns["panels"][t]}
 # print(pd.crosstab(groups, pd.Series(theme).reindex(groups.index)))
 # ```
 #

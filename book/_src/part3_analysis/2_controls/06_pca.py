@@ -41,7 +41,7 @@
 # :::
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -50,15 +50,18 @@ import pandas as pd
 import scanpy as sc
 from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 names = cells.var_names.tolist()
 timepoint = cells.obs.timepoint_h.astype(int).values
 condition = cells.obs.condition.astype(str).values
@@ -265,7 +268,7 @@ pd.DataFrame({
 # %%
 cells.uns["pca"]["features"] = "the 38 normalised markers"
 print("  obsm:", list(cells.obsm), " varm:", list(cells.varm))
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 cells
 
 # %% [markdown]
@@ -327,7 +330,7 @@ cells
 # :class: dropdown
 #
 # ```python
-# full = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+# full = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
 # kept = full[~full.obs.is_outlier_condition].copy()
 # sc.pp.pca(full, n_comps=10, random_state=0)
 # sc.pp.pca(kept, n_comps=10, random_state=0)

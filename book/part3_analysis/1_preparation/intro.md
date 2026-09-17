@@ -85,12 +85,18 @@ which is the part that takes thought.
 
 | file | one row per | what it is for |
 |---|---|---|
-| `mcs2026_clean.h5ad` | cell | the full, normalised, annotated dataset |
+| `mcs2026_clean.h5ad` | cell | the full, normalised, annotated dataset — **this is the one you open** |
 | `mcs2026_sketch.h5ad` | cell | ~30,000 of them, covering the space — embeddings |
-| `mcs2026_wells.parquet` | well | every statistical test |
-| `mcs2026_slim.h5ad` | cell | the wide 2,587-column archive, for texture questions |
+| `mcs2026_full.h5ad` | cell | the wide 2,587-column archive, for texture questions |
 
-Every chapter after this one opens one of those four and starts working.
+Every chapter after this one opens one of those with `sc.read_h5ad` and starts working — and
+**nothing after this chapter imports the course package**. Everything a later chapter needs to
+know about the data travels inside the object: `var` names the markers and their themes, `obs`
+carries the well, condition, timepoint and the per-cell measurements, and `uns` records how the
+numbers were made. A well-level table, when a statistical test needs one, is a `groupby` away.
+
+`mcs2026_slim.h5ad` and `mcs2026_qc.h5ad` also exist. They are the intermediates this stage
+passes between its own chapters, and once Stage 1 has run you can delete them.
 
 ```{important}
 Ask for at least **32 GB** on JupyterHub. The peak is Step 11, not the step that touches

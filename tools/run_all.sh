@@ -25,6 +25,11 @@
 # Chapter 03 also writes mcs2026_with_shape.h5ad -- the 38 markers plus five shape
 # features in one X, all in control SDs. Nothing in the chain reads it; it is an
 # optional output for questions that need shape and intensity in the same space.
+#
+# NO WELL-LEVEL FILE. Every statistical test in Part 4 works on well means, but that
+# table is a groupby on the cell object rather than a file, so it can never go stale
+# against the h5ad it came from. Chapters after 03 import nothing from src/mcs2026;
+# they read the h5ad and work from var, obs and uns.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python}"

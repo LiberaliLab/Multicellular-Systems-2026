@@ -40,7 +40,7 @@ from scipy import stats
 
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 
-from mcs2026 import analysis, plotting
+from mcs2026 import analysis, panels, plotting
 from mcs2026.config import H5AD_SLIM, LAYOUT_XLSX
 
 plotting.set_style()
@@ -608,6 +608,12 @@ cleaned.X = values                                               # and swap in t
 cleaned.var["column"] = marker_cols        # the channel-and-round name, so nothing is lost
 cleaned.var_names = marker_names
 
+# The panel definitions travel with the object, so no chapter after this one has to import
+# the package to know which markers belong to which theme. `var["theme"]` labels each marker;
+# this keeps the *declared* panels too, including markers that are not in these 38.
+cleaned.uns["panels"] = {name: list(members) for name, members in panels.PANELS.items()}
+cleaned.uns["themes"] = list(panels.THEMES)
+
 cleaned.uns["provenance"] = {
     **cleaned.uns["provenance"],
     "features": f"{len(marker_cols)} marker mean intensities, decoded from 4,464 raw columns",
@@ -619,14 +625,13 @@ cleaned.uns["provenance"] = {
 cleaned
 
 # %%
-# One row per well, averaged from the normalised cells -- the replicate unit that every
-# statistical test in Part 4 runs on.
-normalised = analysis.by_well(cleaned)
-
 cleaned.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
-normalised.to_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-print(f"  mcs2026_clean.h5ad    {cleaned.n_obs:,} cells x {cleaned.n_vars} markers, normalised")
-print(f"  mcs2026_wells.parquet {len(normalised):>7} wells x {cleaned.n_vars} markers")
+print(f"  mcs2026_clean.h5ad  {cleaned.n_obs:,} cells x {cleaned.n_vars} markers, normalised")
+
+# Every statistical test in Part 4 works on well means rather than cells, because the well is
+# what was independently treated. That table is not a separate file -- it is one line from the
+# object you just wrote, wherever you need it:
+analysis.by_well(cleaned).iloc[:4, :6].round(2)
 
 # %% [markdown]
 # #### A third object, if you want shape in the analysis
@@ -729,20 +734,20 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 
 # %% [markdown]
 # :::{tip}
-# **Four files, four jobs.**
+# **Three files, three jobs.**
 #
 # - `mcs2026_clean.h5ad` — one row per **cell**: embeddings, clustering, single-cell
 #   distributions. This is what Stage 2 opens.
-# - `mcs2026_wells.parquet` — one row per **well**, already averaged: every statistical test,
-#   because the well is what was independently treated.
 # - `mcs2026_full.h5ad` — the archive, every column as measured: for when a question needs
 #   texture, a shape feature this chapter dropped, or the population columns.
 # - `mcs2026_with_shape.h5ad` — the 38 markers **and** five shape features in one `X`, all in
 #   control SDs: for asking whether shape and intensity say the same thing. Optional; nothing
 #   in the course opens it.
 #
-# Reaching for the cell table when you want the well table is the single most common mistake in
-# Part 3, and [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
+# Counting cells when you should be counting **wells** is the single most common mistake in
+# Part 3 — and [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
+# The well table is not a fourth file, though: it is `analysis.by_well(cells)`, one line
+# wherever you need it, so it can never go stale against the object it came from.
 # :::
 
 # %% [markdown]
@@ -754,7 +759,7 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # | **removed** | border cells (~11%), one well, redundant DAPI and duplicated structural blocks |
 # | **ended with** | `mcs2026_clean.h5ad` — every surviving cell × 38 named markers |
 # | **units** | `X` in control-cell SDs, from a fixed origin at the first timepoint; `obs` measurements as measured |
-# | **and** | `mcs2026_wells.parquet` averaged per well, `mcs2026_full.h5ad` as the archive, and `mcs2026_with_shape.h5ad` with shape in `X` |
+# | **and** | `mcs2026_full.h5ad` as the archive, and `mcs2026_with_shape.h5ad` with shape in `X` |
 #
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour
@@ -839,7 +844,7 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # :class: dropdown
 #
 # ```python
-# ranked = analysis.rank_effects(normalised, names)
+# ranked = analysis.rank_effects(analysis.by_well(cleaned), names)
 # print(ranked.head(10).round(2))
 # print(f"beyond 3 control SDs: {(ranked.abs_shift > 3).sum()} of {len(ranked)}")
 # ```

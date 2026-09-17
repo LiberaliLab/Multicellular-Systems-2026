@@ -35,7 +35,7 @@
 # :::
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -43,15 +43,28 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
+    """A figure with `n` axes on a grid, the unused ones removed."""
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False,
+                             figsize=(size[0] * ncols, size[1] * nrows))
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.remove()
+    return fig, flat[:n]
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers")
 print(f"  conditions: {sorted(cells.obs.condition.astype(str).unique())}, "
       f"{cells.obs.well.nunique()} wells")
@@ -80,7 +93,7 @@ print(f"  obsm: {list(cells.obsm)}")
 # | GATA4, GATA6, SOX17, PDGFRa | **hypoblast** (primitive endoderm) |
 
 # %%
-identity = panels.resolve_panel(cells.var, "identity")
+identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 cells.obsm["X_identity"] = np.asarray(cells[:, identity].X)
 cells.var.loc[identity, ["marker", "round", "channel", "species", "failed"]]
 
@@ -100,6 +113,7 @@ sc.pp.neighbors(cells, n_neighbors=15, use_rep="X_identity", random_state=0)
 print(f"  graph: {cells.obsp['connectivities'].shape[0]:,} cells, "
       f"{cells.obsp['connectivities'].nnz:,} edges")
 print(f"  obsp: {list(cells.obsp)}")
+
 
 # %% [markdown]
 # `n_neighbors` is the one parameter that changes the picture most. Small values emphasise
@@ -121,6 +135,61 @@ print(f"  obsp: {list(cells.obsp)}")
 # it. **Well** and **plate row** are batch: nothing was done differently to these wells, so
 # any structure there is the assay, not the cells.
 
+# %% [markdown]
+# The measure is short enough to read, and worth reading: two details in it are what make
+# the answer trustworthy, and both are easy to get wrong.
+#
+# **Self-pairs must not count.** scanpy stores each cell as its own neighbour in `distances`,
+# so a cell would always "share its label with itself" and every ratio would drift toward 1.
+#
+# **`within` and `exclude` ask different questions.** `within` compares only inside a block and
+# recomputes chance there. `exclude` throws away pairs that share a *nested* label — which is
+# how you tell a real plate-row effect from the well effect wearing a row's clothes.
+
+# %%
+def neighbour_purity(data, labels, *, within=None, exclude=None, neighbors_key=None):
+    """How often a cell's neighbours share its label, against chance.
+
+    `within` restricts every comparison to cells in the same block, so chance is
+    recomputed inside each block. `exclude` drops pairs that share a nested
+    label -- pass the well when asking about the plate row, or the row effect you
+    measure is really the well effect wearing a row's clothes.
+
+    Self-pairs never count. scanpy stores each cell as its own neighbour in
+    `distances` on real data and not on small synthetic data; left in, every
+    ratio drifts toward 1. With no `exclude`, each cell is its own group, so
+    "different group" already means "not itself".
+    """
+    key = data.uns[neighbors_key or "neighbors"]["distances_key"]
+    graph = data.obsp[key]
+    labels = np.asarray(labels)
+    n = len(labels)
+    blocks = np.asarray(within) if within is not None else np.zeros(n, int)
+    groups = np.asarray(exclude) if exclude is not None else np.arange(n)
+
+    rows = np.repeat(np.arange(n), np.diff(graph.indptr))     # every stored edge
+    cols = graph.indices
+    keep = (blocks[rows] == blocks[cols]) & (groups[rows] != groups[cols])
+    same = int((labels[rows[keep]] == labels[cols[keep]]).sum())
+    pairs = int(keep.sum())
+
+    # Chance, as a count of eligible pairs: draw two cells from one block, reject
+    # them if `exclude` groups them together, ask how often the labels match.
+    matching = eligible = 0.0
+    frame = pd.DataFrame({"block": blocks, "label": labels, "group": groups})
+    for _, chunk in frame.groupby("block", observed=True):
+        by_label = chunk.groupby("label", observed=True).size()
+        by_group = chunk.groupby("group", observed=True).size()
+        by_both = chunk.groupby(["label", "group"], observed=True).size()
+        matching += float((by_label ** 2).sum() - (by_both ** 2).sum())
+        eligible += float(len(chunk) ** 2 - (by_group ** 2).sum())
+    expected = matching / eligible if eligible else float("nan")
+    return {"observed": same / pairs if pairs else float("nan"),
+            "expected": expected,
+            "ratio": (same / pairs) / expected if pairs and expected else float("nan"),
+            "pairs": pairs}
+
+
 # %%
 alternative = cells.copy()
 sc.pp.pca(alternative, n_comps=20, random_state=0)
@@ -135,9 +204,9 @@ labels = {
     "plate row": (cells.obs.row.astype(str), {}),
 }
 comparison = pd.DataFrame({
-    "all 38, via PCA": {name: analysis.neighbour_purity(alternative, v, **kw)["ratio"]
+    "all 38, via PCA": {name: neighbour_purity(alternative, v, **kw)["ratio"]
                         for name, (v, kw) in labels.items()},
-    "the 8 identity markers": {name: analysis.neighbour_purity(cells, v, **kw)["ratio"]
+    "the 8 identity markers": {name: neighbour_purity(cells, v, **kw)["ratio"]
                                for name, (v, kw) in labels.items()},
 }).round(2)
 comparison.index.name = "neighbours share their…"
@@ -212,7 +281,7 @@ sc.pl.umap(cells, color=["condition", "timepoint_h", "Oct4", "GATA4"],
 # a scatter plot of two columns.
 
 # %%
-fig, axes = plotting.panel_grid(4, ncols=2, size=(5.4, 4.6))
+fig, axes = panel_grid(4, ncols=2, size=(5.4, 4.6))
 
 s = axes[0].scatter(coords[:, 0], coords[:, 1], c=cells.obsm["X_pca"][:, 0],
                     cmap="magma", s=2, alpha=0.6)
@@ -332,9 +401,9 @@ block = (cells.obs.condition.astype(str) + "_"
          + cells.obs.timepoint_h.astype(str)).values
 
 pd.DataFrame({
-    "well, all pairs": analysis.neighbour_purity(cells, cells.obs.well.astype(str)),
+    "well, all pairs": neighbour_purity(cells, cells.obs.well.astype(str)),
     "well, within condition × timepoint":
-        analysis.neighbour_purity(cells, cells.obs.well.astype(str), within=block),
+        neighbour_purity(cells, cells.obs.well.astype(str), within=block),
 }).T[["observed", "expected", "ratio", "pairs"]].round(3)
 
 # %% [markdown]
@@ -344,9 +413,9 @@ pd.DataFrame({
 
 # %%
 pd.DataFrame({
-    "row, all pairs": analysis.neighbour_purity(cells, cells.obs.row.astype(str)),
+    "row, all pairs": neighbour_purity(cells, cells.obs.row.astype(str)),
     "row, ignoring same-well pairs":
-        analysis.neighbour_purity(cells, cells.obs.row.astype(str),
+        neighbour_purity(cells, cells.obs.row.astype(str),
                                   within=block, exclude=cells.obs.well.astype(str)),
 }).T[["observed", "expected", "ratio", "pairs"]].round(3)
 
@@ -382,7 +451,10 @@ pd.DataFrame({
 # The cells do not separate. Do the **wells**?
 
 # %%
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
 names = [c for c in wells.columns if c not in ("condition", "timepoint", "well")]
 difference = (wells[wells.condition == "PBS"][names].mean()
               - wells[wells.condition == "DMSO"][names].mean())
@@ -410,7 +482,7 @@ difference.reindex(difference.abs().sort_values(ascending=False).index).head(5).
 # reuse them rather than recomputing.
 
 # %%
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 print(f"  obsm : {list(cells.obsm)}")
 print(f"  obsp : {list(cells.obsp)}")
 print(f"  uns  : {sorted(cells.uns)}")
@@ -448,7 +520,7 @@ print(f"  uns  : {sorted(cells.uns)}")
 # :class: dropdown
 #
 # ```python
-# plate = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_sketch.h5ad"))
+# plate = sc.read_h5ad(DATA / "mcs2026_sketch.h5ad")
 # sc.pp.pca(plate, n_comps=20, random_state=0)
 # sc.pp.neighbors(plate, n_neighbors=15, n_pcs=15, random_state=0)
 # sc.tl.umap(plate, random_state=0)
