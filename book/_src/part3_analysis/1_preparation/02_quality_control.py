@@ -140,7 +140,7 @@ counts["share"] = counts.groupby("timepoint_h")["cells"].transform(lambda s: s /
 counts["share"]
 
 # %% [markdown]
-# #### We can plot this deviation from the timepoint median
+# ### We can plot this deviation from the timepoint median
 
 # %%
 fig, ax = plt.subplots(figsize=(7, 3.6))
@@ -155,7 +155,7 @@ ax.set(xlabel="timepoint (h)", ylabel="cells, as a share of the timepoint median
 ax.set_xticks([36, 48, 60, 84])
 
 # %% [markdown]
-# #### We can also flag these wells that are outliers
+# ### We can also flag these wells that are outliers
 
 # %%
 counts.nsmallest(8, "share")[["well", "timepoint_h", "condition", "cells", "share"]].round(3)

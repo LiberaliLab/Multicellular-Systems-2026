@@ -397,6 +397,59 @@ def fig_clean_object(c) -> str:
     return svg(W, H, b, c)
 
 
+# --------------------------------------------------------------------------
+# figure 7 — what Step 17 does to one number
+# --------------------------------------------------------------------------
+def fig_normalisation_formula(c) -> str:
+    W, H = 880, 316
+    bw, bh, gap = 150, 96, 62
+    y = 112
+    # label, value, and the "why" that sits under the box
+    boxes = [
+        ("as measured",      "x = 120",  "mean intensity, a.u."),
+        ("on a log scale",   "6.92",     "a doubling is always +1"),
+        ("from the origin",  "1.04",     "staining drift removed"),
+        ("in control SDs",   "z = +1.47", "comparable across markers"),
+    ]
+    # the operation that sits above each arrow
+    steps = ["log\u2082(x + 1)", "\u2212 B\u2083\u2086", "\u00f7 S"]
+    notes = ["", "origin = 5.88", "unit = 0.71"]
+
+    b = [text(48, 40, "What Step 17 does to one number", fill=c["fg"], size=17, weight=600),
+         text(48, 63, "one Fibronectin cell in a 36 h control well, through the three steps",
+              fill=c["muted"], size=13)]
+
+    for i, (label, value, why) in enumerate(boxes):
+        x = 48 + i * (bw + gap)
+        last = i == len(boxes) - 1
+        b.append(rect(x, y, bw, bh,
+                      c["accent_soft"] if last else c["panel"],
+                      c["accent"] if last else c["panel_edge"],
+                      rx=5, sw=1.8 if last else 1.2))
+        b.append(text(x + bw / 2, y + 30, label, fill=c["muted"], size=11.5, anchor="middle"))
+        b.append(text(x + bw / 2, y + 64, value, fill=c["accent"] if last else c["fg"],
+                      size=19, weight=600, anchor="middle", mono=True))
+        b.append(text(x + bw / 2, y + bh + 24, why, fill=c["muted"], size=11,
+                      anchor="middle", style="italic"))
+        if not last:
+            ax = x + bw + 8
+            b.append(line(ax, y + bh / 2, ax + gap - 16, y + bh / 2, c["muted"], marker=True))
+            b.append(text(ax + (gap - 16) / 2, y - 6, steps[i], fill=c["fg"],
+                          size=12.5, weight=600, anchor="middle", mono=True))
+            if notes[i]:
+                # above the arrow, not beside it: the gap is only 46 px wide, so a
+                # label placed level with the boxes is clipped by the next one.
+                b.append(text(ax + (gap - 16) / 2, y - 24, notes[i],
+                              fill=c["warm"], size=10.5, anchor="middle", mono=True))
+
+    b.append(text(48, H - 26,
+                  "Both constants come from the controls, so nothing a treatment did can "
+                  "reach them.",
+                  fill=c["fg"], size=12.5))
+    return svg(W, H, b, c)
+
+
+
 FIGURES = {
     "zarr_chunks": fig_chunks,
     "zarr_pyramid": fig_pyramid,
@@ -404,6 +457,7 @@ FIGURES = {
     "feature_table_anatomy": fig_table_anatomy,
     "feature_rename": fig_rename,
     "clean_object": fig_clean_object,
+    "normalisation_formula": fig_normalisation_formula,
 }
 
 

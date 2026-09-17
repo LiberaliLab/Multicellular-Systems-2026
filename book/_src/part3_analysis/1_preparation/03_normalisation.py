@@ -141,7 +141,7 @@ ax.invert_yaxis()
 # :::
 
 # %% [markdown]
-# #### Marking the cells coming from the PMA condition
+# ### Marking the cells coming from the PMA condition
 # We can mark these cells in the anndata object, in order to better disntinguish it during analysis.
 
 # %%
@@ -174,8 +174,14 @@ print(f"  flagged {full_adata.obs.is_outlier_condition.sum():,} cells in "
 # | $S$ | **the unit** — spread of control cells about their own group, pooled over the plate | 0.71 |
 # | $z$ | the answer, in **control SDs** | **+1.47** |
 #
-# ```{image} ../../images/normalisation_formula.png
-# :alt: The three steps of the normalisation, shown on Fibronectin control cells at 36 h.
+# ```{image} ../../images/normalisation_formula_light.svg
+# :class: only-light
+# :alt: The three steps of the normalisation, shown on one Fibronectin cell in a 36 h control well.
+# :width: 100%
+# ```
+# ```{image} ../../images/normalisation_formula_dark.svg
+# :class: only-dark
+# :alt: The three steps of the normalisation, shown on one Fibronectin cell in a 36 h control well.
 # :width: 100%
 # ```
 #
@@ -247,9 +253,8 @@ print(f"  flagged {full_adata.obs.is_outlier_condition.sum():,} cells in "
 # timepoint** (**$\div\,S$**), and pool those instead. The unit becomes the spread of a control cell about
 # its own group: plate-wide and stable, without the two things that are not spread.
 #
-# :::{extra}
-# :class{dropdown}
-# ### Why median and not mean, and why SD and not the MAD
+# :::{admonition} Why median and not mean, and why SD and not the MAD
+# :class: dropdown
 #
 # Single-cell intensity distributions have long right tails, and debris, doublets and dying
 # cells live in them. A mean follows them; a median does not. So the **origin** is a median,
@@ -613,7 +618,7 @@ intensity_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_intensity.h5ad"), compre
 print(f"  mcs2026_intensity.h5ad  {intensity_adata.n_obs:,} cells x {intensity_adata.n_vars} markers, normalised")
 
 # %% [markdown]
-# ##### How to turn anndata cell information into well information
+# #### How to turn anndata cell information into well information
 
 # %%
 wells = (intensity_adata.to_df()
@@ -762,8 +767,6 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour
 # graph can be built on, without throwing away the rare cells.
-#
-# ---
 
 # %% [markdown]
 # ---

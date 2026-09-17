@@ -238,7 +238,7 @@ obs[["well", "row", "column", "condition", "timepoint_h"]].head()
 provenance = {c: adata.obs[c].unique()[0] for c in ["Barcode", "Cell_line", "ABs", "Path"]}
 
 # %% [markdown]
-# #### Dropping columns that are now in provenance or that we cleaned up
+# ### Dropping columns that are now in provenance or that we cleaned up
 # Now we need to drop the columns that are always constant (we placed them in provenance, which will be in uns['provenance'] in the anndata). We also remove the columns that had original naming, and that we have now tidied up.
 
 # %%
@@ -485,7 +485,7 @@ slim.uns # contains constants and report info
 #
 # ## Why normalisation is needed
 # An example of the importance of normalisation:
-# #### Cells per well
+# ### Cells per well
 
 # %%
 counts = (slim.obs.groupby("well", observed=True)
