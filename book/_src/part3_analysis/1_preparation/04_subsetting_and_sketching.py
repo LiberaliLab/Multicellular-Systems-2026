@@ -424,7 +424,7 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 # :::
 
 # %% [markdown]
-# ## Extra: How go back to the texture of a choosen channel
+# ## Extra: How to go back to the texture of a choosen channel
 
 # %% [markdown]
 # :::{note}
