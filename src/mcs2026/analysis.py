@@ -95,6 +95,7 @@ def normalise_cells(
     controls=CONTROLS,
     by: str = "timepoint_h",
     condition_key: str = "condition",
+    log2: bool = True,
 ) -> np.ndarray:
     """``log2``, put the origin at the first timepoint, take the unit from the plate.
 
@@ -147,10 +148,17 @@ def normalise_cells(
     and comes back as zeros rather than as infinities. With a standard deviation
     that now means genuinely constant, rather than merely sparse.
 
+    ``log2=False`` skips the transform and centres and scales the values as they
+    are. Intensities want the log -- they are multiplicative and right-skewed --
+    but a *bounded ratio* does not: eccentricity, solidity and extent live on
+    roughly 0 to 1 and are already near-symmetric, so logging them squashes one
+    end for nothing and in fact makes them more skewed. The origin and the unit
+    are computed the same way either way; this flag changes one line.
+
     Returns a dense ``float32`` array of ``(n_obs, len(columns))``.
     """
     raw = np.asarray(data[:, list(columns)].X, dtype="float64")
-    logged = np.log2(raw + 1.0)
+    logged = np.log2(raw + 1.0) if log2 else raw
 
     groups = np.asarray(data.obs[by].astype(int))
     conditions = np.asarray(data.obs[condition_key].astype(str))

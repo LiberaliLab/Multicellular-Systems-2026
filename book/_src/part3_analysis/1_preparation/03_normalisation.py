@@ -629,8 +629,107 @@ print(f"  mcs2026_clean.h5ad    {cleaned.n_obs:,} cells x {cleaned.n_vars} marke
 print(f"  mcs2026_wells.parquet {len(normalised):>7} wells x {cleaned.n_vars} markers")
 
 # %% [markdown]
+# #### A third object, if you want shape in the analysis
+#
+# `X` holds 38 antibodies. The shape measurements sit in `obs`, so they can colour a plot but
+# never reach a PCA or a neighbour graph. To get them **into** the analysis they have to go into
+# `X` — and then they have to arrive on the same scale as the markers, or they will not join the
+# analysis so much as replace it.
+#
+# **Why, in one number.** Join the raw columns and `area` is **99.9997%** of the total variance
+# across all 43; the 38 markers together are **0.0003%**.
+#
+# | | variance, unscaled | share of the 43 columns |
+# |---|---|---|
+# | `area` — pixels, up to ~35,000 | 12,591,660 | **99.9997%** |
+# | all 38 markers together — already ~1 SD | 41.1 | 0.0003% |
+# | the four ratios — bounded near 0–1 | ≈ 0 | ≈ 0 |
+#
+# PCA maximises variance and a neighbour graph measures Euclidean distance. Both are therefore
+# decided by whichever column happens to carry the biggest numbers — and on this data that means
+# **PC1 explains 100.00% of the variance with a loading that is 99.6% `area`**. Thirty-eight
+# antibodies, contributing nothing you could see. Not a subtle bias: the analysis is simply gone.
+#
+# So every column gets the same treatment the markers got in Step 17 — centred on the control
+# cells at the first timepoint, scaled by the control spread — so that **one unit means the same
+# thing in all 43**.
+#
+# **One column is treated differently, and the data picks which.** `area` is a pixel count
+# spanning two orders of magnitude and strongly right-skewed, exactly like an intensity, so it
+# wants `log2` first: that takes its skew from **+2.37 to +0.12**, and the logged and unlogged
+# versions correlate at only **0.892**, so the choice genuinely changes the answer. The four
+# ratios are bounded and already near-symmetric — the two versions agree to three decimals, and
+# logging makes three of the four *more* skewed. Taking the log of a bounded ratio squashes one
+# end for nothing, which is what `log2=False` is for.
+#
+# **Position stays out of `X`.** `x_in_well` and `y_in_well` say where a cell sat, not what it
+# is. In `X` they would push the embedding to cluster cells by their position in the well — the
+# exact artefact [chapter 07](../2_controls/07_umap.ipynb) spends its purity table hunting for.
+# They stay in `obs`, where "does this effect depend on position?" is a good question to ask.
+
+# %%
+# 38 markers and 5 shape features in one X, every column in control-cell SDs.
+SHAPE = ["area", "eccentricity", "solidity", "extent", "roundness"]
+shape_cols = [clean.var.index[(clean.var.family == "Morphology")
+                              & (clean.var.statistic == s)][0] for s in SHAPE]
+
+shape_z = np.hstack([
+    analysis.normalise_cells(clean, shape_cols[:1]),                # a count: log2 first
+    analysis.normalise_cells(clean, shape_cols[1:], log2=False),    # a ratio: do not log it
+])
+
+combined = clean[:, marker_cols + shape_cols].copy()
+combined.layers["raw"] = np.asarray(combined.X, dtype="float32")
+combined.X = np.hstack([values, shape_z]).astype("float32")
+combined.var["column"] = marker_cols + shape_cols
+combined.var_names = marker_names + SHAPE
+combined.uns["provenance"] = {
+    **combined.uns["provenance"],
+    "features": f"{len(marker_cols)} marker mean intensities + {len(SHAPE)} shape features",
+    "X": ("every column in control-cell SDs, origin at the first timepoint; log2 applied to "
+          "the intensities and to area, not to the bounded ratios"),
+    "units": "control-cell SDs throughout",
+}
+combined.write_h5ad(H5AD_SLIM.with_name("mcs2026_with_shape.h5ad"), compression="gzip")
+print(f"  mcs2026_with_shape.h5ad  {combined.n_obs:,} cells x {combined.n_vars} features")
+print(f"  var['family'] splits the two blocks: "
+      f"{dict(combined.var.family.value_counts())}")
+
+# %%
+# The claim the whole section rests on: no column can now dominate by accident. Measured on
+# every control cell, which is the population the unit was fitted on.
+spread = pd.Series(combined.X[controls].std(axis=0, ddof=1), index=combined.var_names)
+print(f"  control spread across all {len(spread)} columns: "
+      f"min {spread.min():.2f}   median {spread.median():.2f}   max {spread.max():.2f}")
+
+# Inside one timepoint a marker that has not switched on yet has little to vary -- that is
+# biology, not a scaling failure. GATA4 is the clearest case.
+first = min(timepoint)
+early = pd.Series(combined.X[controls & (timepoint == first)].std(axis=0, ddof=1),
+                  index=combined.var_names)
+label = f"at {first} h only"
+pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmallest(4, label)
+
+# %% [markdown]
+# Every column sits at a spread of about 1, which is the entire point — `area` no longer
+# outvotes the antibodies 300,000 to one, and a PCA on this object has to actually choose. Run
+# one and PC1 drops from explaining 100% of the variance to about 40%, with `area` down from
+# 99.6% of the loading to a couple of per cent.
+#
+# The second table is worth a look rather than a worry. Inside the **first timepoint alone**,
+# GATA4's spread is a fraction of one unit — because at 36 h it has barely switched on, so there
+# is almost nothing for it to vary by. The unit was fitted across the whole plate on purpose, and
+# a marker that only becomes variable later is exactly the kind of signal that a per-timepoint
+# unit would have flattened.
+#
+# **Nothing later in the course reads this file.** Stage 2 opens `mcs2026_clean.h5ad`, so every
+# embedding in chapters 06–10 is unchanged by its existence. It is here for questions that need
+# shape and intensity in the same space — and `var["family"]` separates the two blocks, so you
+# can always ask what a component is made of.
+
+# %% [markdown]
 # :::{tip}
-# **Three files, three jobs.**
+# **Four files, four jobs.**
 #
 # - `mcs2026_clean.h5ad` — one row per **cell**: embeddings, clustering, single-cell
 #   distributions. This is what Stage 2 opens.
@@ -638,6 +737,9 @@ print(f"  mcs2026_wells.parquet {len(normalised):>7} wells x {cleaned.n_vars} ma
 #   because the well is what was independently treated.
 # - `mcs2026_full.h5ad` — the archive, every column as measured: for when a question needs
 #   texture, a shape feature this chapter dropped, or the population columns.
+# - `mcs2026_with_shape.h5ad` — the 38 markers **and** five shape features in one `X`, all in
+#   control SDs: for asking whether shape and intensity say the same thing. Optional; nothing
+#   in the course opens it.
 #
 # Reaching for the cell table when you want the well table is the single most common mistake in
 # Part 3, and [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
@@ -652,7 +754,7 @@ print(f"  mcs2026_wells.parquet {len(normalised):>7} wells x {cleaned.n_vars} ma
 # | **removed** | border cells (~11%), one well, redundant DAPI and duplicated structural blocks |
 # | **ended with** | `mcs2026_clean.h5ad` — every surviving cell × 38 named markers |
 # | **units** | `X` in control-cell SDs, from a fixed origin at the first timepoint; `obs` measurements as measured |
-# | **and** | `mcs2026_wells.parquet`, the same thing averaged per well, and `mcs2026_full.h5ad`, the archive |
+# | **and** | `mcs2026_wells.parquet` averaged per well, `mcs2026_full.h5ad` as the archive, and `mcs2026_with_shape.h5ad` with shape in `X` |
 #
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour

@@ -21,6 +21,10 @@
 # chapter 02 hands it: same values, plus the enriched obs and a provenance record.
 # Once Stage 1 has run end to end, mcs2026_qc.h5ad is a disposable intermediate, so
 # deleting it keeps total disk flat rather than carrying two ~7 GB copies.
+#
+# Chapter 03 also writes mcs2026_with_shape.h5ad -- the 38 markers plus five shape
+# features in one X, all in control SDs. Nothing in the chain reads it; it is an
+# optional output for questions that need shape and intensity in the same space.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python}"

@@ -209,6 +209,48 @@ def test_the_unit_makes_the_control_spread_about_one(plate):
             assert 0.7 < spread < 1.5, (vehicle, value, spread)
 
 
+def test_log2_false_skips_the_transform_and_nothing_else(plate):
+    """The flag exists for bounded ratios, which do not want a log.
+
+    It must change exactly one thing. The origin is still the control median at
+    the first timepoint and the unit is still the control spread, so both
+    versions put the early controls at zero with a spread near one -- they differ
+    only in the scale the values were measured on before that happened.
+    """
+    logged = analysis.normalise_cells(plate, MARKERS)
+    plain = analysis.normalise_cells(plate, MARKERS, log2=False)
+    assert not np.allclose(logged, plain), "the flag did nothing"
+
+    controls, timepoint = controls_of(plate), timepoints_of(plate)
+    start = controls & (timepoint == TIMEPOINTS[0])
+    for name, out in [("log2", logged), ("plain", plain)]:
+        assert np.abs(np.median(out[start], axis=0)).max() < 0.4, name
+        for vehicle in ("DMSO", "PBS"):
+            block = out[(plate.obs.condition.values == vehicle) & (timepoint == TIMEPOINTS[0])]
+            assert 0.7 < float(np.median(block.std(axis=0, ddof=1))) < 1.5, (name, vehicle)
+
+
+def test_log2_false_is_a_plain_z_score_of_the_raw_values(plate):
+    """Spell out exactly what the flag leaves: centre and scale, nothing else.
+
+    Recompute it by hand the way the function documents it -- origin from the two
+    vehicle medians at the first timepoint, unit from the control deviations about
+    each vehicle x timepoint median -- and the two must agree exactly.
+    """
+    plain = analysis.normalise_cells(plate, MARKERS, log2=False)
+    condition, timepoint = plate.obs.condition.values, timepoints_of(plate)
+
+    raw = np.asarray(plate.X, dtype="float64")
+    origin = np.mean([np.median(raw[(condition == v) & (timepoint == TIMEPOINTS[0])], axis=0)
+                      for v in ("DMSO", "PBS")], axis=0)
+    deviations = np.vstack([raw[(condition == v) & (timepoint == t)]
+                            - np.median(raw[(condition == v) & (timepoint == t)], axis=0)
+                            for v in ("DMSO", "PBS") for t in TIMEPOINTS])
+    unit = deviations.std(axis=0, ddof=1)
+
+    assert np.allclose(plain, (raw - origin) / unit, atol=1e-5)
+
+
 def test_output_is_finite_float32(plate):
     normalised = analysis.normalise_cells(plate, MARKERS)
     assert normalised.dtype == np.float32
