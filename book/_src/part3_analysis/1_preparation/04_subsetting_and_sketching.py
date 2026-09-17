@@ -15,7 +15,7 @@
 # %% [markdown]
 # # 04 · Subsetting and sketching
 #
-# [Chapter 03](03_normalisation.ipynb) handed you one clean object holding every cell that
+# [Chapter 03](03_normalisation.ipynb) handed you one analysis object holding every cell that
 # survived quality control. This chapter is about deliberately taking **less** of it.
 #
 # Two different reasons to do that, and they need different tools:
@@ -65,7 +65,7 @@ pd.set_option("display.width", 140)
 # The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
 DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
-cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers "
       f"({cells.n_obs * cells.n_vars * 4 / 1e9:.2f} GB as float32)")
 
@@ -120,7 +120,7 @@ print(f"  {len(chosen)} columns: {chosen}")
 
 # %% [markdown]
 # :::{note}
-# **When you need more than 38 columns.** The clean object carries one number per antibody
+# **When you need more than 38 columns.** The intensity object carries one number per antibody
 # per cell — *how much* of a protein there is. If your question is about *how it is
 # arranged* — whether the Golgi is compact or dispersed, whether lysosomes are punctate —
 # the texture features are the measurement, and they are back in the wide table.
@@ -132,7 +132,7 @@ print(f"  {len(chosen)} columns: {chosen}")
 # %%
 wide_var = sc.read_h5ad(DATA / "mcs2026_qc.h5ad", backed="r").var
 mine = wide_var[wide_var.marker.isin(my_markers)]
-print(f"  in the clean object : {len(chosen):5d} columns")
+print(f"  in the intensity object : {len(chosen):5d} columns")
 print(f"  in the wide table   : {len(mine):5d} columns")
 print(mine.family.value_counts().to_string())
 
@@ -340,7 +340,7 @@ in_sketch[sketch_index] = True
 cells.obs["in_sketch"] = in_sketch
 
 sketch = cells[sketch_index].copy()
-sketch.uns["sketch_of"] = "mcs2026_clean.h5ad"
+sketch.uns["sketch_of"] = "mcs2026_intensity.h5ad"
 sketch.uns["sketch_method"] = "geosketch.gs on the 38 normalised markers"
 sketch.uns["sketch_size"] = int(len(sketch_index))
 sketch.uns["source_n_obs"] = int(cells.n_obs)
@@ -369,7 +369,7 @@ def describe_subset(adata, *, control="DMSO"):
     }, name="subset")
 
 my_subset = cells[cells.obs.condition.astype(str).isin(my_conditions), organelle_markers]
-pd.concat([describe_subset(cells).rename("clean"),
+pd.concat([describe_subset(cells).rename("intensity"),
            describe_subset(controls).rename("controls"),
            describe_subset(sketch).rename("sketch"),
            describe_subset(my_subset).rename("organelles ×4 conditions")], axis=1)
@@ -392,7 +392,7 @@ print(f"  view : {type(view).__name__:12s} is_view={view.is_view}")
 copy = view.copy()
 print(f"  copy : {type(copy).__name__:12s} is_view={copy.is_view}   "
       f"{copy.n_obs * copy.n_vars * 4 / 1e6:.0f} MB")
-print(f"  the clean table itself is {cells.n_obs * cells.n_vars * 4 / 1e9:.2f} GB")
+print(f"  the intensity table itself is {cells.n_obs * cells.n_vars * 4 / 1e9:.2f} GB")
 
 # %% [markdown]
 # That is the memory lesson from [Step 11](02_quality_control.ipynb) paying off. Slice
@@ -405,22 +405,22 @@ print(f"  the clean table itself is {cells.n_obs * cells.n_vars * 4 / 1e9:.2f} G
 # including to you. `uns` is where that goes.
 
 # %%
-controls.uns["subset_of"] = "mcs2026_clean.h5ad"
+controls.uns["subset_of"] = "mcs2026_intensity.h5ad"
 controls.uns["subset_conditions"] = CONTROLS
 controls.uns["subset_reason"] = "the two untreated conditions; Stage 2 works on all of them"
 
-copy.uns["subset_of"] = "mcs2026_clean.h5ad"
+copy.uns["subset_of"] = "mcs2026_intensity.h5ad"
 copy.uns["subset_conditions"] = my_conditions
 copy.uns["subset_theme"] = "organelles"
 
 controls.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 sketch.write_h5ad(DATA / "mcs2026_sketch.h5ad", compression="gzip")
-cells.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_intensity.h5ad", compression="gzip")
 copy.write_h5ad(DATA / "my_subset.h5ad", compression="gzip")
 
 print(f"  mcs2026_controls.h5ad {controls.n_obs:>7,} cells   <- Stage 2 opens this")
 print(f"  mcs2026_sketch.h5ad   {sketch.n_obs:>7,} cells   <- Part 4 opens this")
-print(f"  mcs2026_clean.h5ad    {cells.n_obs:>7,} cells   <- now carries obs['in_sketch']")
+print(f"  mcs2026_intensity.h5ad    {cells.n_obs:>7,} cells   <- now carries obs['in_sketch']")
 print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 
 # %% [markdown]
@@ -428,7 +428,7 @@ print(f"  my_subset.h5ad        {copy.n_obs:>7,} cells   <- yours")
 #
 # | file | one row per | what it is for |
 # |---|---|---|
-# | `mcs2026_clean.h5ad` | cell | the full, normalised, annotated dataset |
+# | `mcs2026_intensity.h5ad` | cell | the full, normalised, annotated dataset |
 # | `mcs2026_controls.h5ad` | cell | DMSO and PBS, all of them — **Stage 2** |
 # | `mcs2026_sketch.h5ad` | cell | ~30,000 covering all 18 conditions — Part 4 |
 # | `mcs2026_full.h5ad` | cell | the wide 2,587-column archive, for texture questions |

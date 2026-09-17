@@ -1,6 +1,6 @@
 """Tests for the cell-level helpers in ``mcs2026.analysis``.
 
-Stage 1 builds ``mcs2026_clean.h5ad`` out of these four functions, so a silent
+Stage 1 builds ``mcs2026_intensity.h5ad`` out of these four functions, so a silent
 change here would corrupt every chapter downstream without any notebook
 failing. They run on a small synthetic plate rather than on the real 13 GB
 table, so they are fast and need no cluster data.

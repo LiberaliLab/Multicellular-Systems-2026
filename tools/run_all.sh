@@ -5,7 +5,7 @@
 #   ./tools/run_all.sh --from 06_pca    # from that chapter onward
 #   KERNEL=python3 ./tools/run_all.sh   # use a different kernel than the notebooks declare
 #
-# ORDER MATTERS. The chapters form a chain: chapter 03 writes mcs2026_clean.h5ad,
+# ORDER MATTERS. The chapters form a chain: chapter 03 writes mcs2026_intensity.h5ad,
 # chapter 04 cuts it into mcs2026_controls.h5ad (Stage 2) and mcs2026_sketch.h5ad
 # (Part 4), and chapters 06-10 each add a slot (X_pca, X_umap, cell_state, paga,
 # X_diffmap) to the controls file. Re-running an early chapter on its own therefore
@@ -22,7 +22,7 @@
 # Once Stage 1 has run end to end, mcs2026_qc.h5ad is a disposable intermediate, so
 # deleting it keeps total disk flat rather than carrying two ~7 GB copies.
 #
-# Chapter 03 also writes mcs2026_with_shape.h5ad -- the 38 markers plus five shape
+# Chapter 03 also writes mcs2026_intensity_shape.h5ad -- the 38 markers plus five shape
 # features in one X, all in control SDs. Nothing in the chain reads it; it is an
 # optional output for questions that need shape and intensity in the same space.
 #

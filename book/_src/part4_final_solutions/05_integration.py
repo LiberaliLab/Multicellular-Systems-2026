@@ -48,7 +48,7 @@ pd.set_option("display.width", 140)
 # The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
 DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
-cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 wells = (cells.to_df()
          .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
                    cells.obs.well.astype(str)], observed=True).mean()

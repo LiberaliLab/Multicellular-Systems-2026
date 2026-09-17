@@ -68,7 +68,7 @@ pd.set_option("display.width", 150)
 # The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
 DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
-cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 wells = (cells.to_df()
          .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
                    cells.obs.well.astype(str)], observed=True).mean()
@@ -832,9 +832,9 @@ fig.tight_layout()
 
 # %%
 proportions.to_parquet(DATA / "mcs2026_proportions.parquet")
-cells.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_intensity.h5ad", compression="gzip")
 print(f"  mcs2026_proportions.parquet — {len(proportions)} wells")
-print(f"  mcs2026_clean.h5ad — now carries obs['pseudotime']")
+print(f"  mcs2026_intensity.h5ad — now carries obs['pseudotime']")
 
 # %% [markdown]
 # ## What the whole dataset says

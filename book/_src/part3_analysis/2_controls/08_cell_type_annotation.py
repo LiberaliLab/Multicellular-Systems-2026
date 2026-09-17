@@ -269,7 +269,7 @@ print(pd.crosstab(pd.Series(labels[test], name="annotated"),
 # ones, which contribute least to the average.
 
 # %%
-full = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+full = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 full.obs["cell_state"] = pd.Categorical(
     transfer_labels(space, labels, np.asarray(full[:, identity].X)),
     categories=assigned,
@@ -291,7 +291,7 @@ pd.DataFrame({
 #
 # Two rules that follow, and both are load-bearing:
 #
-# - **Proportions are computed on `mcs2026_clean.h5ad`, never on the controls.** The
+# - **Proportions are computed on `mcs2026_intensity.h5ad`, never on the controls.** The
 #   controls are 32 wells chosen for being untreated; their composition is not the plate's.
 # - **A proportion over cells is still not evidence about a treatment.** The plate has three
 #   wells per condition per timepoint, and that — not the cell count — is the amount of
@@ -304,9 +304,9 @@ pd.DataFrame({
 
 # %%
 cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
-full.write_h5ad(DATA / "mcs2026_clean.h5ad", compression="gzip")
-print(f"  controls : {cells.n_obs:,} cells, obs['cell_state'] + clusters + embeddings")
-print(f"  clean    : {full.n_obs:,} cells, obs['cell_state'] projected from the controls")
+full.write_h5ad(DATA / "mcs2026_intensity.h5ad", compression="gzip")
+print(f"  controls  : {cells.n_obs:,} cells, obs['cell_state'] + clusters + embeddings")
+print(f"  intensity : {full.n_obs:,} cells, obs['cell_state'] projected from the controls")
 
 # %% [markdown]
 # ---

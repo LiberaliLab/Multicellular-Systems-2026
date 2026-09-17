@@ -4,7 +4,7 @@ Two kinds of function live here.
 
 **Cell level** -- ``normalise_cells``, ``stratified``, ``sketch`` and
 ``transfer_labels`` operate on the single-cell ``AnnData``. Stage 1 calls them
-to build ``mcs2026_clean.h5ad`` and its sketch; Stage 2 loads the result.
+to build ``mcs2026_intensity.h5ad`` and its sketch; Stage 2 loads the result.
 
 **Well level** -- everything else works on the table of one row per well, one
 column per marker, in units of control-well standard deviations. The well is
@@ -36,7 +36,7 @@ def by_well(data, columns=None, *, name_by=None) -> "pd.DataFrame":
     The well is the replicate unit for every test in Part 3, so this is the
     aggregation almost everything else starts from. It does exactly one thing --
     take the mean of what is in ``X`` -- because by the time Stage 2 opens the
-    clean object ``X`` already holds normalised values and there is nothing left
+    intensity object ``X`` already holds normalised values and there is nothing left
     to decide. Normalisation happens once, to cells, in ``normalise_cells``.
 
     ``columns`` defaults to every column. ``name_by`` renames them through

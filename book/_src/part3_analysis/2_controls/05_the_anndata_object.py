@@ -73,11 +73,11 @@ for key, value in cells.uns["provenance"].items():
 #
 # ```{image} ../../images/clean_object_light.svg
 # :class: only-light
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 # ```{image} ../../images/clean_object_dark.svg
 # :class: only-dark
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 #
 # | slot | shape | holds |
@@ -125,12 +125,12 @@ print(f"  obsp: {list(cells.obsp)}")
 
 # %% [markdown]
 # To see the shapes either way, put something there yourself. Take a slice of
-# `mcs2026_clean.h5ad` — which never carries an embedding, because nothing is ever computed
+# `mcs2026_intensity.h5ad` — which never carries an embedding, because nothing is ever computed
 # on it — and run chapters 06 and 07 in two lines. Small enough to be instant, and thrown
 # away afterwards.
 
 # %%
-demo = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")[:2_000].copy()
+demo = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")[:2_000].copy()
 sc.pp.pca(demo, n_comps=10, random_state=0)
 sc.pp.neighbors(demo, n_neighbors=15, n_pcs=10, random_state=0)
 
@@ -250,10 +250,10 @@ frame.groupby("condition", observed=True).agg(cells=("Oct4", "size"),
 
 # %%
 paths = {
-    "controls (this stage)":       DATA / "mcs2026_controls.h5ad",
-    "clean    (all cells)":        DATA / "mcs2026_clean.h5ad",
-    "sketch   (all 18, reduced)":  DATA / "mcs2026_sketch.h5ad",
-    "slim     (wide, 2,587 cols)": DATA / "mcs2026_slim.h5ad",
+    "controls  (this stage)":       DATA / "mcs2026_controls.h5ad",
+    "intensity (all cells)":        DATA / "mcs2026_intensity.h5ad",
+    "sketch    (all 18, reduced)":  DATA / "mcs2026_sketch.h5ad",
+    "slim      (wide, 2,587 cols)": DATA / "mcs2026_slim.h5ad",
 }
 pd.DataFrame([
     {"file": path.name, "MB on disk": round(path.stat().st_size / 1e6, 1)}
@@ -264,7 +264,7 @@ pd.DataFrame([
 # | file | one row per | open it when |
 # |---|---|---|
 # | `mcs2026_controls.h5ad` | cell | **you are in Stage 2.** DMSO and PBS, every cell of them |
-# | `mcs2026_clean.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
+# | `mcs2026_intensity.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
 # | `mcs2026_sketch.h5ad` | cell | you are embedding all 18 conditions and 653,000 cells will not fit |
 # | `mcs2026_slim.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
 #

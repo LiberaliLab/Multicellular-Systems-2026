@@ -62,9 +62,8 @@ anywhere near you.
 |---|---|---|
 | **15** | Are intensities comparable across rounds? | they are not, and this shows why |
 | **16** | Is any condition an outlier? | one is, badly |
-| **17** | Normalise to the controls | within timepoint, in control-SD units |
-| **18** | Check a known answer | a drug whose effect you can predict |
-| **19** | **Assemble the clean object** | one file, every slot filled |
+| **17** | Set the origin and the unit | a fixed origin at the first timepoint, in control-SD units |
+| **18** | **Assemble the three objects** | the archive, the analysis object, and one with shape |
 
 ### [04 · Subsetting and sketching](04_subsetting_and_sketching.ipynb)
 
@@ -76,18 +75,19 @@ which is the part that takes thought.
 
 ```{image} ../../images/clean_object_light.svg
 :class: only-light
-:alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+:alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 ```
 ```{image} ../../images/clean_object_dark.svg
 :class: only-dark
-:alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+:alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 ```
 
 | file | one row per | what it is for |
 |---|---|---|
-| `mcs2026_clean.h5ad` | cell | the full, normalised, annotated dataset — **this is the one you open** |
+| `mcs2026_intensity.h5ad` | cell | the full, normalised, annotated dataset — **this is the one you open** |
 | `mcs2026_sketch.h5ad` | cell | ~30,000 of them, covering the space — embeddings |
 | `mcs2026_full.h5ad` | cell | the wide 2,587-column archive, for texture questions |
+| `mcs2026_intensity_shape.h5ad` | cell | the 38 markers **and** five shape features in one `X` — optional, nothing in the course opens it |
 
 Every chapter after this one opens one of those with `sc.read_h5ad` and starts working — and
 **nothing after this chapter imports the course package**. Everything a later chapter needs to

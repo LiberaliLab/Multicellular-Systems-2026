@@ -245,7 +245,7 @@ pd.DataFrame({
 # A fair worry: these are 32 untreated wells, and a first component that eats half the
 # variance might be something peculiar to them.
 #
-# It is not. Run the same PCA on `mcs2026_clean.h5ad` — all eighteen conditions, 653,000
+# It is not. Run the same PCA on `mcs2026_intensity.h5ad` — all eighteen conditions, 653,000
 # cells — and PC1 takes **44.5%** against the share printed above, correlating with the
 # mean of all markers at 0.996 and with DAPI at +0.66. Almost the same numbers.
 #
@@ -321,7 +321,7 @@ cells
 #
 # This one needs the **full** object, not the controls: the outlier flagged in
 # [Step 16](../1_preparation/03_normalisation.ipynb) is a treatment, and there are no
-# treatments in this file. Fit the PCA on `mcs2026_clean.h5ad` twice, with and without the
+# treatments in this file. Fit the PCA on `mcs2026_intensity.h5ad` twice, with and without the
 # flagged cells. Does the variance explained by PC1 change? Does PC2 start describing
 # something new?
 
@@ -330,7 +330,7 @@ cells
 # :class: dropdown
 #
 # ```python
-# full = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+# full = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 # kept = full[~full.obs.is_outlier_condition].copy()
 # sc.pp.pca(full, n_comps=10, random_state=0)
 # sc.pp.pca(kept, n_comps=10, random_state=0)

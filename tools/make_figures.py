@@ -332,7 +332,7 @@ def fig_rename(c) -> str:
 def fig_clean_object(c) -> str:
     W, H = 880, 470
     b = [text(48, 40, "What Stage 1 hands over", fill=c["fg"], size=17, weight=600),
-         text(48, 63, "mcs2026_clean.h5ad — the same object, with every slot filled in",
+         text(48, 63, "mcs2026_intensity.h5ad — the same object, with every slot filled in",
               fill=c["muted"], size=13)]
 
     ox, oy = 48, 168
@@ -346,8 +346,8 @@ def fig_clean_object(c) -> str:
     b.append(rect(ox, oy, ow, oh, c["panel"], c["panel_edge"], rx=5))
     b.append(text(ox + 10, oy - 10, "obs — one row per cell", fill=c["fg"], size=12, weight=600))
     for i, name in enumerate(["well", "condition", "timepoint_h",
-                              "replicate", "area", "dapi", "…"]):
-        new = name in {"replicate", "area", "dapi"}
+                              "area", "roundness", "dapi", "…"]):
+        new = name in {"area", "roundness", "dapi"}
         weight = 700 if new else 400
         fill = c["accent"] if new else c["muted"]
         b.append(text(ox + 12, oy + 26 + i * 24, name, fill=fill, size=11,

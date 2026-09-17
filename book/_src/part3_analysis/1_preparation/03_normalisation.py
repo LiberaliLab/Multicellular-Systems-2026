@@ -23,7 +23,7 @@
 # | **Step 15** | Are intensities comparable across rounds? |
 # | **Step 16** | Is any condition an outlier? |
 # | **Step 17** | Normalise to the controls |
-# | **Step 18** | Assemble the clean object |
+# | **Step 18** | Assemble the three objects |
 #
 
 # %%
@@ -47,13 +47,13 @@ plotting.set_style()
 pd.set_option("display.width", 140)
 
 
-### Clean is the filtered anndata from the previous notebook
+### full_adata is the filtered anndata from the previous notebook
 
-clean = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"))
+full_adata = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_qc.h5ad"))
 
 
-print(f"{clean.n_obs:,} cells x {clean.n_vars:,} features, "
-      f"{clean.obs.well.nunique()} wells")
+print(f"{full_adata.n_obs:,} cells x {full_adata.n_vars:,} features, "
+      f"{full_adata.obs.well.nunique()} wells")
 
 # %% [markdown]
 # ## Step 15 · Are intensities comparable across rounds?
@@ -63,19 +63,19 @@ print(f"{clean.n_obs:,} cells x {clean.n_vars:,} features, "
 # Here is what that means for the markers.
 
 # %%
-dapi_columns = clean.var.loc[
-    clean.var.index[(clean.var.channel == "DAPI") & (clean.var.statistic == "mean_intensity")]
+dapi_columns = full_adata.var.loc[
+    full_adata.var.index[(full_adata.var.channel == "DAPI") & (full_adata.var.statistic == "mean_intensity")]
 ].sort_values("round").index
 
 dapi = pd.Series(
-    np.median(np.asarray(clean[:, list(dapi_columns)].X), axis=0),
-    index=clean.var.loc[dapi_columns, "round"].astype(int).values, name="median DAPI",
+    np.median(np.asarray(full_adata[:, list(dapi_columns)].X), axis=0),
+    index=full_adata.var.loc[dapi_columns, "round"].astype(int).values, name="median DAPI",
 )
 
-marker_cols = analysis.marker_columns(clean.var)
+marker_cols = analysis.marker_columns(full_adata.var)
 marker_median = pd.Series(
-    np.median(np.asarray(clean[:, marker_cols].X), axis=0),
-    index=clean.var.loc[marker_cols, "round"].astype(int).values,
+    np.median(np.asarray(full_adata[:, marker_cols].X), axis=0),
+    index=full_adata.var.loc[marker_cols, "round"].astype(int).values,
 ).groupby(level=0).median()
 
 fig, ax = plt.subplots(figsize=(7, 3.4))
@@ -105,8 +105,8 @@ ax.legend()
 # their first component describing it.
 
 # %%
-wells = analysis.by_well(clean, marker_cols, name_by="marker")
-names = [clean.var.loc[c, "marker"] for c in marker_cols]
+wells = analysis.by_well(full_adata, marker_cols, name_by="marker")
+names = [full_adata.var.loc[c, "marker"] for c in marker_cols]
 
 logged = np.log2(wells[names] + 1)
 centred = logged - logged[wells.condition == "DMSO"].mean()
@@ -145,11 +145,11 @@ ax.invert_yaxis()
 # We can mark these cells in the anndata object, in order to better disntinguish it during analysis.
 
 # %%
-clean.obs["is_outlier_condition"] = clean.obs.condition.astype(str).eq(
+full_adata.obs["is_outlier_condition"] = full_adata.obs.condition.astype(str).eq(
     "Phorbol 12-myristate 13-acetate (PMA)"
 )
-print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
-      f"{clean.obs.loc[clean.obs.is_outlier_condition, 'well'].nunique()} wells")
+print(f"  flagged {full_adata.obs.is_outlier_condition.sum():,} cells in "
+      f"{full_adata.obs.loc[full_adata.obs.is_outlier_condition, 'well'].nunique()} wells")
 
 # %% [markdown]
 # ## Step 17 · Normalization: Set the origin and the unit
@@ -293,9 +293,9 @@ print(f"  flagged {clean.obs.is_outlier_condition.sum():,} cells in "
 
 # %%
 # Here we apply the normalisation 
-values = analysis.normalise_cells(clean, marker_cols)
-print(f"  {values.shape[0]:,} cells x {values.shape[1]} markers, {values.dtype}")
-print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(clean.obs.timepoint_h.astype(int))} h")
+normalised_intensities = analysis.normalise_cells(full_adata, marker_cols)
+print(f"  {normalised_intensities.shape[0]:,} cells x {normalised_intensities.shape[1]} markers, {normalised_intensities.dtype}")
+print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(full_adata.obs.timepoint_h.astype(int))} h")
 
 # %% [markdown]
 # The code behind `normalise_cells` lives in
@@ -310,22 +310,22 @@ print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(clean.obs.timepoi
 # Both rows are summarised **per well**, because the well is the replicate unit and because a cell median is the wrong summary for a marker that is simply absent from most cells. GATA4 is negative in more than half the control cells at every timepoint, so its cell median sits at zero however many cells have switched on. A well mean counts them.
 
 # %%
-controls = clean.obs.condition.astype(str).isin(analysis.CONTROLS).values
-timepoint = clean.obs.timepoint_h.astype(int).values
+controls = full_adata.obs.condition.astype(str).isin(analysis.CONTROLS).values
+timepoint = full_adata.obs.timepoint_h.astype(int).values
 
 WATCH = ["GATA4", "Fibronectin", "Calreticulin"]
-watch_cols = [c for c in marker_cols if clean.var.loc[c, "marker"] in WATCH]
-names = [clean.var.loc[c, "marker"] for c in marker_cols]
+watch_cols = [c for c in marker_cols if full_adata.var.loc[c, "marker"] in WATCH]
+names = [full_adata.var.loc[c, "marker"] for c in marker_cols]
 hours = sorted(set(timepoint))
 
 # The recipe this chapter argues against, without reimplementing it: normalising one
 # timepoint at a time *is* centring on that timepoint's own controls, because within a
-# single timepoint "the first timepoint" is that timepoint. `clean[rows]` is a view, so
+# single timepoint "the first timepoint" is that timepoint. `full_adata[rows]` is a view, so
 # this costs one 38-column block per timepoint rather than a copy of the wide table.
-per_timepoint = np.zeros_like(values)
+per_timepoint = np.zeros_like(normalised_intensities)
 for value in hours:
     rows = timepoint == value
-    per_timepoint[rows] = analysis.normalise_cells(clean[rows], marker_cols)
+    per_timepoint[rows] = analysis.normalise_cells(full_adata[rows], marker_cols)
 
 
 # Everything below is summarised per well, the replicate unit. A cell median would be the
@@ -333,24 +333,24 @@ for value in hours:
 # every timepoint, so its cell median stays at zero no matter how many cells switch on.
 # A well mean counts them.
 def control_wells(matrix):
-    block = ad.AnnData(X=matrix, obs=clean.obs.copy(), var=pd.DataFrame(index=names))
+    block = ad.AnnData(X=matrix, obs=full_adata.obs.copy(), var=pd.DataFrame(index=names))
     table = analysis.by_well(block)
     return table[table.condition.isin(analysis.CONTROLS)]
 
-fixed_origin, moving_origin = control_wells(values), control_wells(per_timepoint)
-raw = analysis.by_well(clean, watch_cols, name_by="marker")
+fixed_origin, moving_origin = control_wells(normalised_intensities), control_wells(per_timepoint)
+raw = analysis.by_well(full_adata, watch_cols, name_by="marker")
 raw = raw[raw.condition.isin(analysis.CONTROLS)]
 
 fig, axes = plotting.panel_grid(6, ncols=3, size=(4.0, 3.1))
 for k, column in enumerate(watch_cols):
-    name = clean.var.loc[column, "marker"]
+    name = full_adata.var.loc[column, "marker"]
 
     ax = axes[k]
     logged = np.log2(raw[name] + 1)
     ax.plot(raw.timepoint, logged, "o", color="0.6", ms=4, alpha=0.8)
     ax.plot(hours, [logged[raw.timepoint == h].median() for h in hours],
             "-", color="black", lw=1.6)
-    ax.set(title=f"{name}  ·  round {int(clean.var.loc[column, 'round'])}",
+    ax.set(title=f"{name}  ·  round {int(full_adata.var.loc[column, 'round'])}",
            xlabel="hours", ylabel="log2(intensity + 1)", xticks=hours)
 
     ax = axes[k + 3]
@@ -390,10 +390,10 @@ fig.tight_layout()
 #
 
 # %% [markdown]
-# ## Step 18 · Assemble the clean object
+# ## Step 18 · Assemble the three objects
 #
 # Everything Stage 1 established is currently scattered: the decoder is in a `var` table, the
-# dropped wells in a `uns` entry, and the normalised values in `values`, a bare array that
+# dropped wells in a `uns` entry, and the normalised values in `normalised_intensities`, a bare array that
 # exists only in this notebook's memory.
 #
 # This step puts them together, so that every chapter after this one begins with a single
@@ -401,11 +401,11 @@ fig.tight_layout()
 #
 # ```{image} ../../images/clean_object_light.svg
 # :class: only-light
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 # ```{image} ../../images/clean_object_dark.svg
 # :class: only-dark
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 
 # %% [markdown]
@@ -415,64 +415,13 @@ fig.tight_layout()
 # antibody per cell. That is a large cut and it needs an argument, not a preference.
 
 # %%
-counts = clean.var.family.value_counts()
+counts = full_adata.var.family.value_counts()
 pd.DataFrame({"columns": counts, "% of the table": (100 * counts / counts.sum()).round(1)})
 
 # %% [markdown]
-# **A feature set votes by column count.** Texture is most of what survived, so it decides
-# most of anything computed from all of it. That is a claim, so measure it — cheaply, at the
-# well level, where the whole table is 223 rows.
-
-# %%
-everything = clean.var.index.tolist()
-well_wide = analysis.by_well(clean, everything)
-# abs() because Morphology_orientation is an angle and reaches -1.57; log2 of that
-# would be NaN. It is the one non-positive column in the table.
-logged = np.log2(np.abs(well_wide[everything]) + 1)
-
-reference = logged[(well_wide.condition == "DMSO").values]
-# A column with no spread across the control wells carries no information here, and
-# dividing by its zero would give infinities that fillna does not catch.
-spread = reference.std().replace(0, np.nan)
-scaled = (((logged - reference.mean()) / spread)
-          .replace([np.inf, -np.inf], np.nan).fillna(0))
-
-survey = ad.AnnData(scaled.to_numpy(dtype="float32"))
-sc.pp.pca(survey, n_comps=2, random_state=0)
-weight = (pd.Series(np.abs(survey.varm["PCs"][:, 0]), index=everything)
-          .groupby(clean.var.family, observed=True).sum())
-pd.DataFrame({
-    "% of columns": (100 * counts / counts.sum()).round(1),
-    "% of PC1's loading": (100 * weight / weight.sum()).round(1),
-}).sort_values("% of columns", ascending=False)
-
-# %% [markdown]
-# **Read the two columns against each other.** Each family contributes to the first component
-# in almost exactly the proportion of columns it has — not in proportion to how much it
-# knows. Feed a method everything and you have not asked it an open question; you have voted
-# for texture 2,262 times.
-#
-# **And most of those columns repeat each other.** Each marker carries 58 texture features.
-# How many independent numbers is that really?
-
-# %%
-one_marker = clean.var.index[(clean.var.family == "Texture") & (clean.var.marker == "LAMP1")]
-block = ad.AnnData(scaled[list(one_marker)].to_numpy(dtype="float32"))
-sc.pp.pca(block, n_comps=min(block.n_vars, block.n_obs) - 1, random_state=0)
-spectrum = block.uns["pca"]["variance_ratio"]
-
-correlation = scaled[list(one_marker)].corr().abs().values
-np.fill_diagonal(correlation, np.nan)
-print(f"  LAMP1 has {len(one_marker)} texture columns")
-print(f"  median |correlation| between them: {np.nanmedian(correlation):.2f}")
-print(f"  components reaching 90% of their variance: {(np.cumsum(spectrum) < 0.9).sum() + 1}")
-
-# %% [markdown]
-# Fifty-eight columns, and single figures of real dimension between them. The block
-# is wide, not deep.
 #
 # :::{important}
-# **What this gives up, stated plainly.** Texture is not noise. It measures something the
+# **For this course, we drop texture.** Texture is not noise. It measures something the
 # mean cannot — *how* a protein is arranged rather than how much of it there is — and for
 # several markers on this plate that is where the effect lives: the mean barely moves while
 # the texture of the same marker shifts by several control SDs. A compound that redistributes
@@ -482,23 +431,21 @@ print(f"  components reaching 90% of their variance: {(np.cumsum(spectrum) < 0.9
 # answerable with 38 interpretable numbers, every one of which reads back to an antibody, and
 # a component you cannot name is a component you cannot report.
 #
-# The wide table stays on disk as `mcs2026_slim.h5ad` and the door is open. Three things
-# will bite you when you walk through it: `Morphology_orientation` is an angle in radians, so
-# it has no mean and no meaningful z-score; `Population_mean_distance_nn_50` and `_100`
-# already contain NaNs; and Haralick correlations are roughly symmetric while Laws energies
-# are skewed like intensities, so no single transform is right for all of them.
 # :::
 
 # %%
-marker_cols = analysis.marker_columns(clean.var)
-marker_names = clean.var.loc[marker_cols, "marker"].tolist()
+marker_cols = analysis.marker_columns(full_adata.var)
+marker_names = full_adata.var.loc[marker_cols, "marker"].tolist()
 print(f"{len(marker_cols)} markers, one column each")
 print(f"  {', '.join(marker_names[:10])} …")
+
+# %%
+full_adata
 
 # %% [markdown]
 # ### Build it
 #
-# **You already have the object.** `clean` is an `AnnData` — every surviving cell × every
+# **You already have the object.** `full_adata` is an `AnnData` — every surviving cell × every
 # surviving feature — so nothing here is built from scratch. This step does two things to it:
 # writes down the per-cell measurements that are currently buried among the columns, then keeps
 # the 38 markers and swaps in the normalised numbers.
@@ -511,57 +458,90 @@ print(f"  {', '.join(marker_names[:10])} …")
 # | `X` | cell × marker | the numbers you analyse — normalised, in control SDs |
 # | `layers["raw"]` | cell × marker | the same table, as measured |
 # | `var` | **marker** | the decoder from Step 7 — channel, round, family, theme, thresholds |
-# | `obs` | **cell** | well, condition, timepoint, replicate, and the measurements that are not stains |
+# | `obs` | **cell** | well, condition, timepoint, and the measurements that are not stains |
 # | `uns` | the whole object | what was dropped, why, and how the numbers were made |
 #
 # **The one rule: `obs` has to line up with `X`'s rows, and `var` with its columns.** Subsetting
-# keeps that true for you — `clean[:, marker_cols]` takes the columns *and* their matching `var`
+# keeps that true for you — `full_adata[:, marker_cols]` takes the columns *and* their matching `var`
 # rows in a single move. Assembling the pieces by hand is where alignment quietly goes wrong.
 #
-# #### Two files, because choosing 38 markers is a decision
+# #### Three files, because choosing 38 markers is a decision
+#
+# They are written in this order, and each one is a subset of the one before it:
 #
 # | file | shape | `X` | reach for it when |
 # |---|---|---|---|
-# | `mcs2026_clean.h5ad` | cells × 38 | normalised | doing anything in Stage 2 or Part 4 |
 # | `mcs2026_full.h5ad` | cells × 2,587 | as measured | you want texture, a shape feature dropped below, or the population columns |
+# | `mcs2026_intensity.h5ad` | cells × 38 | normalised | doing anything in Stage 2 or Part 4 |
+# | `mcs2026_intensity_shape.h5ad` | cells × 43 | normalised | you want shape and intensity in the same space |
 #
 # The 38 markers are the right set for the question this course asks. They are not the only set,
 # and an archive is what makes that choice reversible.
 
+# %% [markdown]
+# ### Before doing anything to the current object
+#
+# Nothing here needs a backup yet. `full_adata.X` is exactly what the microscope measured, and
+# this chapter never writes over it — the archive saved in a moment **is** the raw data. A
+# `layers["raw"]` snapshot appears later, on the object whose `X` really does get replaced by
+# the normalised numbers.
+#
+
+# %% [markdown]
+# #### The per-cell measurements: out of `X`, into `obs`
+#
+# They are measurements of the *cell* rather than of a stain, so they do not belong in a table
+# of antibodies — but they are worth having on every row.
+#
+
+# %% [markdown]
+# First we add morphology features, this all come from DAPI measurements and since they are not intensities they rarely depend on round.
+
 # %%
-# Per-cell facts that are currently implicit or buried in the columns. All of them go on
-# `clean`, before the split, so both files inherit them.
-
-# `replicate` is the one thing the plate implies but never states: which of the three (or
-# five) wells of a condition x timepoint this cell came from. Part 4 counts wells.
-well_key = (clean.obs[["condition", "timepoint_h", "well"]]
-            .drop_duplicates()
-            .sort_values(["condition", "timepoint_h", "well"]))
-well_key["replicate"] = (well_key.groupby(["condition", "timepoint_h"], observed=True)
-                         .cumcount() + 1)
-clean.obs["replicate"] = (clean.obs.well.astype(str)
-                          .map(dict(zip(well_key.well.astype(str), well_key.replicate)))
-                          .astype("int8"))
-
-# Measurements of the *cell* rather than of a stain. DAPI is the counterstain; the rest come
-# from the segmentation mask. None belongs in `X` alongside the antibodies, and none is
-# normalised -- see the note below.
 PER_CELL = {"area": "area", "eccentricity": "eccentricity", "solidity": "solidity",
             "extent": "extent", "roundness": "roundness",
             "well_centroid-0": "x_in_well", "well_centroid-1": "y_in_well"}
+
+# Build columns in obs with morphology
 for statistic, name in PER_CELL.items():
-    found = clean.var.index[(clean.var.family == "Morphology")
-                            & (clean.var.statistic == statistic)]
+    found = full_adata.var.index[(full_adata.var.family == "Morphology")
+                                 & (full_adata.var.statistic == statistic)]
     if len(found) == 0:                     # fail loudly rather than silently skip a column
         raise KeyError(f"no Morphology column for {statistic!r}")
-    clean.obs[name] = np.asarray(clean[:, found[0]].X).ravel()
 
-dapi_column = clean.var.index[(clean.var.channel == "DAPI")
-                              & (clean.var.statistic == "mean_intensity")
-                              & (clean.var["round"] == 0)][0]
-clean.obs["dapi"] = np.asarray(clean[:, dapi_column].X).ravel()
+    full_adata.obs[name] = np.asarray(full_adata[:, found[0]].X).ravel()
 
-clean.obs[list(PER_CELL.values()) + ["dapi"]].describe().loc[["mean", "min", "max"]].round(2)
+# %% [markdown]
+# Then we add DAPI mean intensity at round 0, even though it changes with round 
+
+# %%
+dapi_column = full_adata.var.index[(full_adata.var.channel == "DAPI")
+                                   & (full_adata.var.statistic == "mean_intensity")
+                                   & (full_adata.var["round"] == 0)][0]
+
+full_adata.obs["dapi"] = np.asarray(full_adata[:, dapi_column].X).ravel()
+
+# %% [markdown]
+# We add some metadata to uns and save the file
+
+# %%
+
+full_adata.uns["provenance"] = {
+    **full_adata.uns.get("provenance", {}),
+    "built_by": "Multicellular Systems 2026, Part 3 Stage 1, chapter 03",
+    "built_on": date.today().isoformat(),
+    "layout_workbook": LAYOUT_XLSX.name,
+    "cells_removed": "border cells — is_border_external or is_border_internal",
+    "wells_removed": "; ".join(f"{w}: {why}" for w, why in full_adata.uns["dropped_wells"].items()),
+}
+
+
+# The archive: every column, as measured, with the obs and provenance above.
+full_adata.uns["provenance"]["features"] = f"{full_adata.n_vars:,} columns, as measured"
+
+
+full_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_full.h5ad"), compression="gzip")
+
 
 # %% [markdown]
 # **Why the `obs` measurements are not normalised.** `normalise_cells` exists to remove
@@ -579,59 +559,69 @@ clean.obs[list(PER_CELL.values()) + ["dapi"]].describe().loc[["mean", "min", "ma
 # units.** If you ever want to cluster on shape, z-score it at that point, where the choice is
 # visible.
 
-# %%
-# Notes that belong to both files. In six months neither you nor whoever you sent it to will
-# remember whether the border cells came out, or which well was dropped and why.
-clean.uns["provenance"] = {
-    **clean.uns.get("provenance", {}),
-    "built_by": "Multicellular Systems 2026, Part 3 Stage 1, chapter 03",
-    "built_on": date.today().isoformat(),
-    "layout_workbook": LAYOUT_XLSX.name,
-    "cells_removed": "border cells — is_border_external or is_border_internal",
-    "wells_removed": "; ".join(f"{w}: {why}" for w, why in clean.uns["dropped_wells"].items()),
-}
-for key, value in clean.uns["provenance"].items():
-    print(f"  {key:18s} {value}")
+# %% [markdown]
+# ### Now we can create a new anndata with only the intensity features and normalized
+
+# %% [markdown]
+# We duplicate our data but only including intensities in the X 
 
 # %%
-# The archive: every column, as measured, with the obs and provenance above.
-clean.uns["provenance"]["features"] = f"{clean.n_vars:,} columns, as measured"
-clean.write_h5ad(H5AD_SLIM.with_name("mcs2026_full.h5ad"), compression="gzip")
-print(f"  mcs2026_full.h5ad  {clean.n_obs:,} cells x {clean.n_vars:,} features, as measured")
+intensity_adata = full_adata[:, marker_cols].copy()
 
 # %%
-# The analysis object: the same cells, 38 marker columns, normalised numbers. `obs`, `var`
-# and `uns` come along with the subset -- that is the point of doing it this way round.
-cleaned = clean[:, marker_cols].copy()
-cleaned.layers["raw"] = np.asarray(cleaned.X, dtype="float32")   # keep what was measured
-cleaned.X = values                                               # and swap in the normalised
-cleaned.var["column"] = marker_cols        # the channel-and-round name, so nothing is lost
-cleaned.var_names = marker_names
+intensity_adata
+
+
+# %% [markdown]
+# Now the three edits that turn the copy into the analysis object: snapshot the measured
+# numbers in `layers["raw"]`, swap the normalised ones into `X`, and rename the columns from
+# channel-and-round codes to marker names. The panel definitions go into `uns` at the same
+# time, so no chapter after this one has to import the course package to know which markers
+# belong to which theme.
+#
+# ```{note}
+# The snapshot uses `.astype("float32")`, which always returns a new array.
+# `np.asarray(x, dtype="float32")` would **not**: given an array that is already `float32` it
+# hands back the very same object, and the "snapshot" would be a second name for `X`.
+# ```
+#
+
+# %%
+intensity_adata.layers["raw"] = intensity_adata.X.astype("float32")  # a real copy, not a view
+intensity_adata.X = normalised_intensities                           # swap in the normalised numbers
+intensity_adata.var["column"] = marker_cols                          # keep the channel-and-round name
+intensity_adata.var_names = marker_names                             # and show the marker instead
 
 # The panel definitions travel with the object, so no chapter after this one has to import
 # the package to know which markers belong to which theme. `var["theme"]` labels each marker;
 # this keeps the *declared* panels too, including markers that are not in these 38.
-cleaned.uns["panels"] = {name: list(members) for name, members in panels.PANELS.items()}
-cleaned.uns["themes"] = list(panels.THEMES)
+intensity_adata.uns["panels"] = {name: list(members) for name, members in panels.PANELS.items()}
+intensity_adata.uns["themes"] = list(panels.THEMES)
 
-cleaned.uns["provenance"] = {
-    **cleaned.uns["provenance"],
+intensity_adata.uns["provenance"] = {
+    **intensity_adata.uns["provenance"],
     "features": f"{len(marker_cols)} marker mean intensities, decoded from 4,464 raw columns",
     "X": ("log2(x + 1); origin = median of the DMSO+PBS cells at the first timepoint, "
           "unit = SD of control cells about their own vehicle x timepoint median"),
     "layers_raw": "mean intensity as measured",
     "units": "X in control-cell SDs; obs measurements in pixels and ratios",
 }
-cleaned
+intensity_adata
 
 # %%
-cleaned.write_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"), compression="gzip")
-print(f"  mcs2026_clean.h5ad  {cleaned.n_obs:,} cells x {cleaned.n_vars} markers, normalised")
+intensity_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_intensity.h5ad"), compression="gzip")
+print(f"  mcs2026_intensity.h5ad  {intensity_adata.n_obs:,} cells x {intensity_adata.n_vars} markers, normalised")
 
 # Every statistical test in Part 4 works on well means rather than cells, because the well is
-# what was independently treated. That table is not a separate file -- it is one line from the
-# object you just wrote, wherever you need it:
-analysis.by_well(cleaned).iloc[:4, :6].round(2)
+# what was independently treated. That table is not a fourth file -- it is one groupby on the
+# object you just wrote, and this is the line the later chapters use, where the course package
+# is no longer imported:
+wells = (intensity_adata.to_df()
+         .groupby([intensity_adata.obs.condition.astype(str),
+                   intensity_adata.obs.timepoint_h.astype(int),
+                   intensity_adata.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
+wells.iloc[:4, :6].round(2)
 
 # %% [markdown]
 # #### A third object, if you want shape in the analysis
@@ -675,43 +665,43 @@ analysis.by_well(cleaned).iloc[:4, :6].round(2)
 # %%
 # 38 markers and 5 shape features in one X, every column in control-cell SDs.
 SHAPE = ["area", "eccentricity", "solidity", "extent", "roundness"]
-shape_cols = [clean.var.index[(clean.var.family == "Morphology")
-                              & (clean.var.statistic == s)][0] for s in SHAPE]
+shape_cols = [full_adata.var.index[(full_adata.var.family == "Morphology")
+                                   & (full_adata.var.statistic == s)][0] for s in SHAPE]
 
 shape_z = np.hstack([
-    analysis.normalise_cells(clean, shape_cols[:1]),                # a count: log2 first
-    analysis.normalise_cells(clean, shape_cols[1:], log2=False),    # a ratio: do not log it
+    analysis.normalise_cells(full_adata, shape_cols[:1]),                # a count: log2 first
+    analysis.normalise_cells(full_adata, shape_cols[1:], log2=False),    # a ratio: do not log it
 ])
 
-combined = clean[:, marker_cols + shape_cols].copy()
-combined.layers["raw"] = np.asarray(combined.X, dtype="float32")
-combined.X = np.hstack([values, shape_z]).astype("float32")
-combined.var["column"] = marker_cols + shape_cols
-combined.var_names = marker_names + SHAPE
-combined.uns["provenance"] = {
-    **combined.uns["provenance"],
+intensity_shape_adata = full_adata[:, marker_cols + shape_cols].copy()
+intensity_shape_adata.layers["raw"] = np.asarray(intensity_shape_adata.X, dtype="float32")
+intensity_shape_adata.X = np.hstack([normalised_intensities, shape_z]).astype("float32")
+intensity_shape_adata.var["column"] = marker_cols + shape_cols
+intensity_shape_adata.var_names = marker_names + SHAPE
+intensity_shape_adata.uns["provenance"] = {
+    **intensity_shape_adata.uns["provenance"],
     "features": f"{len(marker_cols)} marker mean intensities + {len(SHAPE)} shape features",
     "X": ("every column in control-cell SDs, origin at the first timepoint; log2 applied to "
           "the intensities and to area, not to the bounded ratios"),
     "units": "control-cell SDs throughout",
 }
-combined.write_h5ad(H5AD_SLIM.with_name("mcs2026_with_shape.h5ad"), compression="gzip")
-print(f"  mcs2026_with_shape.h5ad  {combined.n_obs:,} cells x {combined.n_vars} features")
+intensity_shape_adata.write_h5ad(H5AD_SLIM.with_name("mcs2026_intensity_shape.h5ad"), compression="gzip")
+print(f"  mcs2026_intensity_shape.h5ad  {intensity_shape_adata.n_obs:,} cells x {intensity_shape_adata.n_vars} features")
 print(f"  var['family'] splits the two blocks: "
-      f"{dict(combined.var.family.value_counts())}")
+      f"{dict(intensity_shape_adata.var.family.value_counts())}")
 
 # %%
 # The claim the whole section rests on: no column can now dominate by accident. Measured on
 # every control cell, which is the population the unit was fitted on.
-spread = pd.Series(combined.X[controls].std(axis=0, ddof=1), index=combined.var_names)
+spread = pd.Series(intensity_shape_adata.X[controls].std(axis=0, ddof=1), index=intensity_shape_adata.var_names)
 print(f"  control spread across all {len(spread)} columns: "
       f"min {spread.min():.2f}   median {spread.median():.2f}   max {spread.max():.2f}")
 
 # Inside one timepoint a marker that has not switched on yet has little to vary -- that is
 # biology, not a scaling failure. GATA4 is the clearest case.
 first = min(timepoint)
-early = pd.Series(combined.X[controls & (timepoint == first)].std(axis=0, ddof=1),
-                  index=combined.var_names)
+early = pd.Series(intensity_shape_adata.X[controls & (timepoint == first)].std(axis=0, ddof=1),
+                  index=intensity_shape_adata.var_names)
 label = f"at {first} h only"
 pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmallest(4, label)
 
@@ -727,7 +717,7 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # a marker that only becomes variable later is exactly the kind of signal that a per-timepoint
 # unit would have flattened.
 #
-# **Nothing later in the course reads this file.** Stage 2 opens `mcs2026_clean.h5ad`, so every
+# **Nothing later in the course reads this file.** Stage 2 opens `mcs2026_intensity.h5ad`, so every
 # embedding in chapters 06–10 is unchanged by its existence. It is here for questions that need
 # shape and intensity in the same space — and `var["family"]` separates the two blocks, so you
 # can always ask what a component is made of.
@@ -736,18 +726,19 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # :::{tip}
 # **Three files, three jobs.**
 #
-# - `mcs2026_clean.h5ad` — one row per **cell**: embeddings, clustering, single-cell
+# - `mcs2026_intensity.h5ad` — one row per **cell**: embeddings, clustering, single-cell
 #   distributions. This is what Stage 2 opens.
 # - `mcs2026_full.h5ad` — the archive, every column as measured: for when a question needs
 #   texture, a shape feature this chapter dropped, or the population columns.
-# - `mcs2026_with_shape.h5ad` — the 38 markers **and** five shape features in one `X`, all in
+# - `mcs2026_intensity_shape.h5ad` — the 38 markers **and** five shape features in one `X`, all in
 #   control SDs: for asking whether shape and intensity say the same thing. Optional; nothing
 #   in the course opens it.
 #
 # Counting cells when you should be counting **wells** is the single most common mistake in
 # Part 3 — and [chapter 08](../2_controls/08_cell_type_annotation.ipynb) shows what it costs.
-# The well table is not a fourth file, though: it is `analysis.by_well(cells)`, one line
-# wherever you need it, so it can never go stale against the object it came from.
+# The well table is not a fourth file, though: it is a `groupby` on the cell object, one line
+# wherever you need it, so it can never go stale against the object it came from — and it needs
+# nothing but pandas, which is why the later chapters can build it without the course package.
 # :::
 
 # %% [markdown]
@@ -757,9 +748,9 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # |---|---|
 # | **started with** | 733,556 × 4,464, `var` empty, 13.1 GB |
 # | **removed** | border cells (~11%), one well, redundant DAPI and duplicated structural blocks |
-# | **ended with** | `mcs2026_clean.h5ad` — every surviving cell × 38 named markers |
+# | **ended with** | `mcs2026_intensity.h5ad` — every surviving cell × 38 named markers |
 # | **units** | `X` in control-cell SDs, from a fixed origin at the first timepoint; `obs` measurements as measured |
-# | **and** | `mcs2026_full.h5ad` as the archive, and `mcs2026_with_shape.h5ad` with shape in `X` |
+# | **and** | `mcs2026_full.h5ad` as the archive, and `mcs2026_intensity_shape.h5ad` with shape in `X` |
 #
 # One chapter of Stage 1 remains: [04 · Subsetting and
 # sketching](04_subsetting_and_sketching.ipynb) cuts this down to something a neighbour
@@ -784,10 +775,10 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # because within a single timepoint "the first timepoint" is that timepoint:
 #
 # ```python
-# per_timepoint = np.zeros_like(values)
+# per_timepoint = np.zeros_like(normalised_intensities)
 # for value in sorted(set(timepoint)):
 #     rows = timepoint == value
-#     per_timepoint[rows] = analysis.normalise_cells(clean[rows], marker_cols)
+#     per_timepoint[rows] = analysis.normalise_cells(full_adata[rows], marker_cols)
 #
 # for value in sorted(set(timepoint)):
 #     block = per_timepoint[controls & (timepoint == value)]
@@ -816,8 +807,8 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # :class: dropdown
 #
 # ```python
-# dmso_only = analysis.normalise_cells(clean, marker_cols, controls=("DMSO",))
-# moved = pd.Series(np.median(dmso_only, axis=0) - np.median(values, axis=0), index=names)
+# dmso_only = analysis.normalise_cells(full_adata, marker_cols, controls=("DMSO",))
+# moved = pd.Series(np.median(dmso_only, axis=0) - np.median(normalised_intensities, axis=0), index=names)
 # print(moved.abs().sort_values(ascending=False).head(5).round(2))
 # ```
 #
@@ -844,7 +835,7 @@ pd.DataFrame({"all timepoints": spread.round(2), label: early.round(2)}).nsmalle
 # :class: dropdown
 #
 # ```python
-# ranked = analysis.rank_effects(analysis.by_well(cleaned), names)
+# ranked = analysis.rank_effects(analysis.by_well(intensity_adata), names)
 # print(ranked.head(10).round(2))
 # print(f"beyond 3 control SDs: {(ranked.abs_shift > 3).sum()} of {len(ranked)}")
 # ```

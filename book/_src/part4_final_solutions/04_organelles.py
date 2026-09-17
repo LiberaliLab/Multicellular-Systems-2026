@@ -66,7 +66,7 @@ DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs202
 
 THEME = "organelles"
 
-cells = sc.read_h5ad(DATA / "mcs2026_clean.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 wells = (cells.to_df()
          .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
                    cells.obs.well.astype(str)], observed=True).mean()
