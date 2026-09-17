@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -14,7 +15,7 @@
 # %% [markdown]
 # # 05 · The AnnData object
 #
-# Stage 1 built five files and this stage opens one of them. Ten minutes spent on **what is
+# Stage 1 built seven files and this stage opens one of them. Ten minutes spent on **what is
 # actually in it** saves an afternoon later, because almost every confusing error in
 # single-cell analysis is really a question about which slot something lives in.
 #
@@ -27,20 +28,25 @@
 # | **5** | Which file to open for which question |
 
 # %%
-import sys
+import os
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
+
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
 
 # %% [markdown]
 # ## 1 · Open it, and print the slots
@@ -49,7 +55,7 @@ pd.set_option("display.width", 140)
 # this file — possibly you, six weeks ago — and this is how you find out what they did.
 
 # %%
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 cells
 
 # %% [markdown]
@@ -67,11 +73,11 @@ for key, value in cells.uns["provenance"].items():
 #
 # ```{image} ../../images/clean_object_light.svg
 # :class: only-light
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 # ```{image} ../../images/clean_object_dark.svg
 # :class: only-dark
-# :alt: The clean AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
+# :alt: The analysis AnnData: X holding normalised values, a raw layer, an annotated var table, a tidy obs table, and provenance in uns.
 # ```
 #
 # | slot | shape | holds |
@@ -119,12 +125,12 @@ print(f"  obsp: {list(cells.obsp)}")
 
 # %% [markdown]
 # To see the shapes either way, put something there yourself. Take a slice of
-# `mcs2026_clean.h5ad` — which never carries an embedding, because nothing is ever computed
+# `mcs2026_intensity.h5ad` — which never carries an embedding, because nothing is ever computed
 # on it — and run chapters 06 and 07 in two lines. Small enough to be instant, and thrown
 # away afterwards.
 
 # %%
-demo = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))[:2_000].copy()
+demo = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")[:2_000].copy()
 sc.pp.pca(demo, n_comps=10, random_state=0)
 sc.pp.neighbors(demo, n_neighbors=15, n_pcs=10, random_state=0)
 
@@ -235,19 +241,19 @@ frame.groupby("condition", observed=True).agg(cells=("Oct4", "size"),
 # `timepoint_h` is also an **ordered** categorical, which is right for plotting and wrong for
 # arithmetic — pandas will not subtract categories. Cast it: `obs.timepoint_h.astype(int)`.
 # :::
-
+#
 # ## 5 · Which file to open for which question
 #
-# Stage 1 wrote four. Choosing the wrong one is the most common way to get a confidently
-# wrong answer in Part 3.
+# Choosing the wrong one is the most common way to get a confidently wrong answer in Part 3.
+# These are the ones you open; `mcs2026_slim.h5ad` and `mcs2026_qc.h5ad` are Stage 1's own
+# intermediates and `mcs2026_full.h5ad` is the archive you go back to for texture.
 
 # %%
 paths = {
-    "controls (this stage)":       H5AD_SLIM.with_name("mcs2026_controls.h5ad"),
-    "clean    (all cells)":        H5AD_SLIM.with_name("mcs2026_clean.h5ad"),
-    "sketch   (all 18, reduced)":  H5AD_SLIM.with_name("mcs2026_sketch.h5ad"),
-    "wells    (statistics)":       H5AD_SLIM.with_name("mcs2026_wells.parquet"),
-    "slim     (wide, 2,587 cols)": H5AD_SLIM,
+    "controls  (this stage)":       DATA / "mcs2026_controls.h5ad",
+    "intensity (all cells)":        DATA / "mcs2026_intensity.h5ad",
+    "sketch    (all 18, reduced)":  DATA / "mcs2026_sketch.h5ad",
+    "full      (wide, 2,587 cols)": DATA / "mcs2026_full.h5ad",
 }
 pd.DataFrame([
     {"file": path.name, "MB on disk": round(path.stat().st_size / 1e6, 1)}
@@ -258,10 +264,9 @@ pd.DataFrame([
 # | file | one row per | open it when |
 # |---|---|---|
 # | `mcs2026_controls.h5ad` | cell | **you are in Stage 2.** DMSO and PBS, every cell of them |
-# | `mcs2026_clean.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
+# | `mcs2026_intensity.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
 # | `mcs2026_sketch.h5ad` | cell | you are embedding all 18 conditions and 653,000 cells will not fit |
-# | `mcs2026_wells.parquet` | well | you are running a **statistical test**. The well is the replicate |
-# | `mcs2026_slim.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
+# | `mcs2026_full.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
 #
 # :::{important}
 # **Stage 2 opens the controls and nothing else.** Every method in the chapters that follow
@@ -272,7 +277,7 @@ pd.DataFrame([
 # patience; the 653,000-cell table does not, which is why Part 4 has a sketch and this stage
 # does not need one.
 # :::
-
+#
 # ## The habit
 #
 # One cell, at the top of every notebook, before anything else:

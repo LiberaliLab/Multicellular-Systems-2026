@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -36,7 +37,8 @@
 # | **6** | Does the axis describe the rest of the plate? |
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -45,16 +47,29 @@ import pandas as pd
 import scanpy as sc
 from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
+    """A figure with `n` axes on a grid, the unused ones removed."""
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False,
+                             figsize=(size[0] * ncols, size[1] * nrows))
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.remove()
+    return fig, flat[:n]
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
-identity = panels.resolve_panel(cells.var, "identity", verbose=False)
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"{cells.n_obs:,} control cells")
 print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
 print(f"  states: {list(cells.obs.cell_state.cat.categories)}")
@@ -113,7 +128,7 @@ print(f"  DC2 - DC3 gap: {evals.iloc[2] - evals.iloc[3]:.4f}")
 
 # %%
 dc = cells.obsm["X_diffmap"]
-fig, axes = plotting.panel_grid(3, ncols=3, size=(4.6, 4.0))
+fig, axes = panel_grid(3, ncols=3, size=(4.6, 4.0))
 
 for ax, (colour, title, kwargs) in zip(axes, [
     (cells.obs.cell_state.cat.codes, "cell state", dict(cmap="Set2")),
@@ -311,7 +326,7 @@ fig.tight_layout()
 # whether DC1 comes out describing the same thing.
 
 # %%
-plate = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_sketch.h5ad"))
+plate = sc.read_h5ad(DATA / "mcs2026_sketch.h5ad")
 plate.obsm["X_identity"] = np.asarray(plate[:, identity].X)
 sc.pp.neighbors(plate, n_neighbors=15, use_rep="X_identity", random_state=0)
 sc.tl.diffmap(plate, n_comps=10)
@@ -348,6 +363,7 @@ pd.DataFrame({
 # question with a number attached, not a matter of hoping.
 
 # %% [markdown]
+#
 # %% [markdown]
 # ### One last check: the negative result, properly powered
 #
@@ -366,7 +382,7 @@ dmso = per_well.loc[per_well.condition == "DMSO", "pseudotime"]
 print(f"  PBS  {pbs.mean():.3f} over {len(pbs)} wells")
 print(f"  DMSO {dmso.mean():.3f} over {len(dmso)} wells")
 print(f"  p       = {stats.mannwhitneyu(pbs, dmso).pvalue:.3f}")
-print(f"  p_floor = {analysis.minimum_p(len(pbs), len(dmso)):.2e}")
+print(f"  p_floor = {2 / comb(len(pbs) + len(dmso), len(pbs)):.2e}")
 
 # %% [markdown]
 # :::{important}
@@ -386,7 +402,7 @@ print(f"  p_floor = {analysis.minimum_p(len(pbs), len(dmso)):.2e}")
 # ## 7 · Save
 
 # %%
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 print(f"  obsm : {list(cells.obsm)}")
 print(f"  obs  : cell_state, dpt_pseudotime, cluster, leiden_*")
 print(f"  uns  : iroot = {cells.uns['iroot']}")

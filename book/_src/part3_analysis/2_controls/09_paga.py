@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -38,7 +39,7 @@
 # :::
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -46,16 +47,19 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
-identity = panels.resolve_panel(cells.var, "identity", verbose=False)
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 
 print(f"{cells.n_obs:,} control cells")
 print(f"  states from chapter 08: {list(cells.obs.cell_state.cat.categories)}")
@@ -321,7 +325,7 @@ sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
 # ## Save
 
 # %%
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 print(f"  obs : fine ({cells.obs.fine.nunique()} clusters), cell_state")
 print(f"  obsm: {list(cells.obsm)}")
 print(f"  uns : paga connectivities for {len(connectivity)} clusters")
@@ -370,7 +374,7 @@ print(f"  uns : paga connectivities for {len(connectivity)} clusters")
 # :class: dropdown
 #
 # ```python
-# organelles = panels.resolve_panel(cells.var, "organelles", verbose=False)
+# organelles = [m for m in cells.uns["panels"]["organelles"] if m in set(cells.var_names)]
 # cells.obsm["X_organelles"] = np.asarray(cells[:, organelles].X)
 # sc.pp.neighbors(cells, n_neighbors=15, use_rep="X_organelles",
 #                 key_added="org", random_state=0)

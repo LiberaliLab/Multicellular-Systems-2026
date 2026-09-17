@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -37,27 +38,80 @@
 # :::
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
-
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
+
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
 THEME = "cell_cycle"          # <- signaling / mechanics / metabolism / organelles
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
 print(f"  cells: {cells.n_obs:,} x {cells.n_vars}   wells: {wells.shape[0]} rows")
+
+def rank_effects(wells, markers, control="DMSO", drop=None):
+    """Every condition x marker pair, ranked by absolute shift.
+
+    `p_floor` is the smallest p-value this design can produce: with n treated
+    and m control wells there are C(n+m, n) orderings, so a two-sided
+    Mann-Whitney can never go below 2/C(n+m, n). A row sitting at the floor is
+    not more significant than another row at the floor, whatever its effect size.
+    """
+    frame = wells if drop is None else wells[wells.condition != drop]
+    reference = frame[frame.condition == control]
+    rows = []
+    for condition, block in frame.groupby("condition", observed=True):
+        if condition == control:
+            continue
+        for marker in markers:
+            treated, base = block[marker].dropna(), reference[marker].dropna()
+            if len(treated) < 3 or len(base) < 3:
+                continue
+            rows.append({"condition": condition, "marker": marker,
+                         "shift": treated.mean() - base.mean(), "n_wells": len(treated),
+                         "p": stats.mannwhitneyu(treated, base).pvalue,
+                         "p_floor": 2 / comb(len(treated) + len(base), len(treated))})
+    out = pd.DataFrame(rows)
+    out["abs_shift"] = out["shift"].abs()
+    out["at_p_floor"] = np.isclose(out["p"], out["p_floor"])
+    return out.sort_values("abs_shift", ascending=False).reset_index(drop=True)
+
+def compare_to_control(wells, marker, condition, control="DMSO"):
+    """One marker, one condition, per timepoint, against the control wells."""
+    rows = []
+    for timepoint, block in wells.groupby("timepoint", observed=True):
+        treated = block.loc[block.condition == condition, marker].dropna()
+        base = block.loc[block.condition == control, marker].dropna()
+        if len(treated) < 2 or len(base) < 2:
+            continue
+        rows.append({"timepoint": timepoint, "n_treated": len(treated),
+                     "n_control": len(base),
+                     "shift": round(treated.mean() - base.mean(), 2),
+                     "p": round(stats.mannwhitneyu(treated, base).pvalue, 4),
+                     "p_floor": round(2 / comb(len(treated) + len(base), len(treated)), 4)})
+    return pd.DataFrame(rows)
+
+OUTLIER = cells.obs.condition[cells.obs.is_outlier_condition].astype(str).iloc[0]
+
 
 # %% [markdown]
 # ## 1 · Write the question down
@@ -86,8 +140,8 @@ print(QUESTION)
 # becomes a missing marker nobody notices.
 
 # %%
-columns = panels.resolve_panel(cells.var, THEME)
-markers = analysis.panel_markers(THEME, wells.columns)
+columns = [m for m in cells.uns["panels"][THEME] if m in set(cells.var_names)]
+markers = [m for m in cells.uns["panels"][THEME] if m in set(wells.columns)]
 
 print(f"  {THEME}: {len(columns)} markers -> {markers}")
 cells.var.loc[columns, ["marker", "round", "channel", "failed"]]
@@ -123,7 +177,7 @@ sc.pl.umap(mine, color=[*markers, "cell_state"], ncols=2, s=4, frameon=False,
 # the smallest p-value the design can produce alongside each real one.
 
 # %%
-ranked = analysis.rank_effects(wells, markers)
+ranked = rank_effects(wells, markers, drop=OUTLIER)
 ranked.head(10).round(3)
 
 # %% [markdown]
@@ -152,7 +206,7 @@ print(f"  pairs beyond 2 control SDs: {(ranked.abs_shift > 2).sum()}")
 
 # %%
 top = ranked.iloc[0]
-analysis.compare_to_control(wells, top.marker, top.condition)
+compare_to_control(wells, top.marker, top.condition)
 
 # %% [markdown]
 # **Which grouping is right depends on your question.** Pooling asks whether the compound

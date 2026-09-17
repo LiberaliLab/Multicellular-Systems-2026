@@ -1,6 +1,6 @@
 """Tests for the cell-level helpers in ``mcs2026.analysis``.
 
-Stage 1 builds ``mcs2026_clean.h5ad`` out of these four functions, so a silent
+Stage 1 builds ``mcs2026_intensity.h5ad`` out of these four functions, so a silent
 change here would corrupt every chapter downstream without any notebook
 failing. They run on a small synthetic plate rather than on the real 13 GB
 table, so they are fast and need no cluster data.
@@ -158,6 +158,97 @@ def test_the_vehicle_gap_does_not_inflate_the_unit(plate):
     # and the gap itself survives, as a difference of several units
     gap = np.median(normalised[pbs][:, 2]) - np.median(normalised[dmso][:, 2])
     assert gap > 2.0, gap
+
+
+def test_a_marker_that_is_off_in_most_cells_survives(plate):
+    """The regression this exists for: a switching marker must not be deleted.
+
+    A median absolute deviation is decided by the middle half of the data, so a
+    marker sitting at background in more than half the cells has a MAD of exactly
+    zero and gets zeroed by the dead-column guard. On the real plate that was
+    GATA4, absent from 69% of control cells and the most dynamic marker in the
+    panel. The unit is a standard deviation for this reason.
+    """
+    switching = plate.copy()
+    timepoint = timepoints_of(switching)
+    rng = np.random.default_rng(3)
+    # off in ~85% of cells early, ~35% late: a minority switching on over the course
+    off_rate = {36: 0.85, 48: 0.8, 60: 0.6, 84: 0.35}
+    for value in TIMEPOINTS:
+        rows = np.flatnonzero(timepoint == value)
+        off = rng.random(len(rows)) < off_rate[value]
+        switching.X[rows[off], 3] = 0.0
+
+    normalised = analysis.normalise_cells(switching, MARKERS)
+    controls = controls_of(switching)
+    assert not np.allclose(normalised[:, 3], 0), "the switching marker was deleted"
+
+    # the well-level mean must track the fraction that switched on
+    trace = [normalised[controls & (timepoint == v), 3].mean() for v in TIMEPOINTS]
+    assert trace == sorted(trace), trace
+    assert trace[-1] - trace[0] > 0.5, trace
+
+
+def test_the_unit_makes_the_control_spread_about_one(plate):
+    """What "one control SD" has to mean, and what the MAD version broke.
+
+    On the real plate a MAD unit gave the control block a spread of 46 rather
+    than 1, because two zero-inflated markers had near-zero units.
+    """
+    normalised = analysis.normalise_cells(plate, MARKERS)
+    controls, timepoint = controls_of(plate), timepoints_of(plate)
+
+    # Per marker, within one vehicle at one timepoint -- which is exactly the
+    # group the unit was estimated from. Flattening the block instead would fold
+    # in the time course and the gap between the two vehicles, both of which are
+    # signal rather than spread.
+    for value in TIMEPOINTS:
+        for vehicle in ("DMSO", "PBS"):
+            block = normalised[(plate.obs.condition.values == vehicle) & (timepoint == value)]
+            spread = float(np.median(block.std(axis=0, ddof=1)))
+            assert 0.7 < spread < 1.5, (vehicle, value, spread)
+
+
+def test_log2_false_skips_the_transform_and_nothing_else(plate):
+    """The flag exists for bounded ratios, which do not want a log.
+
+    It must change exactly one thing. The origin is still the control median at
+    the first timepoint and the unit is still the control spread, so both
+    versions put the early controls at zero with a spread near one -- they differ
+    only in the scale the values were measured on before that happened.
+    """
+    logged = analysis.normalise_cells(plate, MARKERS)
+    plain = analysis.normalise_cells(plate, MARKERS, log2=False)
+    assert not np.allclose(logged, plain), "the flag did nothing"
+
+    controls, timepoint = controls_of(plate), timepoints_of(plate)
+    start = controls & (timepoint == TIMEPOINTS[0])
+    for name, out in [("log2", logged), ("plain", plain)]:
+        assert np.abs(np.median(out[start], axis=0)).max() < 0.4, name
+        for vehicle in ("DMSO", "PBS"):
+            block = out[(plate.obs.condition.values == vehicle) & (timepoint == TIMEPOINTS[0])]
+            assert 0.7 < float(np.median(block.std(axis=0, ddof=1))) < 1.5, (name, vehicle)
+
+
+def test_log2_false_is_a_plain_z_score_of_the_raw_values(plate):
+    """Spell out exactly what the flag leaves: centre and scale, nothing else.
+
+    Recompute it by hand the way the function documents it -- origin from the two
+    vehicle medians at the first timepoint, unit from the control deviations about
+    each vehicle x timepoint median -- and the two must agree exactly.
+    """
+    plain = analysis.normalise_cells(plate, MARKERS, log2=False)
+    condition, timepoint = plate.obs.condition.values, timepoints_of(plate)
+
+    raw = np.asarray(plate.X, dtype="float64")
+    origin = np.mean([np.median(raw[(condition == v) & (timepoint == TIMEPOINTS[0])], axis=0)
+                      for v in ("DMSO", "PBS")], axis=0)
+    deviations = np.vstack([raw[(condition == v) & (timepoint == t)]
+                            - np.median(raw[(condition == v) & (timepoint == t)], axis=0)
+                            for v in ("DMSO", "PBS") for t in TIMEPOINTS])
+    unit = deviations.std(axis=0, ddof=1)
+
+    assert np.allclose(plain, (raw - origin) / unit, atol=1e-5)
 
 
 def test_output_is_finite_float32(plate):

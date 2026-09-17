@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -29,11 +30,10 @@
 # it is only possible because of it.
 #
 # :::{important}
-# Run this notebook **once**. Everything after it works on the file it writes.
+# Here we compute, the most important part of the pre-processing, as we give each feature the correct marker name.
 #
-# It is also the notebook people expect to be the expensive one, and it is not: the 13 GB
-# file is opened `backed`, so it is never in memory. The peak here is about 8 GB, when the
-# slim table is materialised at the end. Chapter 02 costs twice that.
+# This step could be one of the most memory intensive, however most of the time one does not need to load the whole X matrix, which contains all the data values. 
+# This notebook works mainly on metadata; therefore, one only needs to load this. If you want to do this, one can load the anndata object using the `backed` option, so it is never in memory. 
 # :::
 #
 # The table arrives as raw as it gets — no layers, no embeddings, and a `var` holding
@@ -88,6 +88,9 @@ print(f"var columns: {list(adata.var.columns)}   <- empty")
 # %% [markdown]
 # ## Step 6 · Parse the column names into channel and round
 #
+# :::{admonition} How it works
+#
+# :class: dropdown
 # The names follow a grammar:
 #
 # ```text
@@ -101,12 +104,8 @@ print(f"var columns: {list(adata.var.columns)}   <- empty")
 #
 # Two families carry a channel, because they measure a stain. Two do not, because they
 # measure the segmentation mask itself.
-#
-# :::{warning}
-# `Texas Red` contains a **space**. A naive `name.split("_")` looks like it works — until
-# 630 columns silently come out wrong. `mcs2026.decode` matches the channel names
-# explicitly instead.
 # :::
+#
 
 # %%
 var = decode.parse_var_names(adata.var_names)
@@ -118,9 +117,6 @@ print(f"names that did not parse: {len(unparsed)}")
 assert len(unparsed) == 0, f"decoder does not cover: {list(unparsed[:5])}"
 
 # %% [markdown]
-# That assertion is the most valuable line in the notebook. If this dataset is ever
-# replaced by another plate with a different panel, it fails here — loudly, on the first
-# cell — rather than 200 cells later in a plot that looks plausible and is wrong.
 #
 # ### What the matrix is actually made of
 
@@ -133,6 +129,12 @@ decode.structure_report(var)
 # *arranged* within a cell — whether a signal is smooth or punctate, clustered or
 # uniform. For organelle markers that is exactly the interesting part: a lysosome marker
 # is not informative because it is bright, but because it is *speckled*.
+#
+# :::{important}
+# `Haralick features` and `Laws Texture Energies` are, however, extremely hard to
+# interpret. That is why Stage 1 ends with two objects: `mcs2026_intensity.h5ad` without
+# them and `mcs2026_full.h5ad` with them.
+# :::
 #
 # **Intensity is only 6.5%** — the five familiar summary statistics per channel-round.
 #
@@ -187,9 +189,6 @@ for key, value in report.items():
 # `obs` needs work too. Two of its columns are actively misleading.
 
 # %%
-adata.obs.head(3)
-
-# %%
 for column in ["Medium", "Concentration", "Cell_line", "Barcode", "ABs"]:
     print(f"{column:15s} {adata.obs[column].nunique():>3} levels  "
           f"{list(adata.obs[column].unique()[:5])}")
@@ -237,7 +236,10 @@ obs[["well", "row", "column", "condition", "timepoint_h"]].head()
 
 # %%
 provenance = {c: adata.obs[c].unique()[0] for c in ["Barcode", "Cell_line", "ABs", "Path"]}
-provenance
+
+# %% [markdown]
+# ### Dropping columns that are now in provenance or that we cleaned up
+# Now we need to drop the columns that are always constant (we placed them in provenance, which will be in uns['provenance'] in the anndata). We also remove the columns that had original naming, and that we have now tidied up.
 
 # %%
 obs = obs.drop(columns=["Barcode", "Cell_line", "ABs", "Path", "Medium", "Concentration"])
@@ -284,8 +286,7 @@ var[var.failed].groupby(["marker", "round", "channel"], observed=True).size().re
 # has. They do not depend on which antibody was used, so there is no obvious reason to
 # measure them 18 times.
 #
-# But "no obvious reason" is not evidence. Before dropping 765 columns, **check the
-# assumption**: are these re-measured each round, or copied?
+# Below we check if they are identical
 
 # %%
 area_columns = var.loc[
@@ -301,19 +302,9 @@ pd.DataFrame({
 }).set_index("round").T
 
 # %% [markdown]
-# **Byte-identical in all 18 rounds.** Not similar — the same numbers.
+# **Byte-identical in all 18 rounds.** the exact same numbers.
 #
-# So the cells were segmented once, and the resulting measurements were joined alongside
-# every round when the table was assembled. Keeping one round is provably lossless, and
-# drops 765 columns.
-#
-# :::{note}
-# It was worth one cell to check. *Measured* per round and *copied* per round look
-# identical in a column name and mean completely different things: the first is a quality
-# signal you would want to plot, the second is dead weight. Had they differed, that
-# drift would have been a finding — cells changing shape across elution cycles is a real
-# failure mode of 4i.
-# :::
+# Keeping one round is lossless, and drops 765 columns.
 
 # %% [markdown]
 # ### DAPI is a different story
@@ -377,7 +368,7 @@ print(f"largest step:  round 8 -> 14, {dapi_by_round.loc[8] / dapi_by_round.loc[
 # :::
 
 # %% [markdown]
-# ### Apply the decisions
+# ### Apply the decisions to reduce our matrix
 
 # %%
 keep = decode.slim_mask(
@@ -386,7 +377,7 @@ keep = decode.slim_mask(
     keep_dapi_intensity=True,       # the drift record, 90 columns
     keep_dapi_texture_round=0,      # chromatin texture in the reference channel
     drop_failed=True,               # the two stains that did not work
-    drop_texture=False,             # keep Haralick: the organelle panel needs it
+    drop_texture=False,             # keep Haralick
 )
 decode.slim_report(var, keep, adata.n_obs)
 
@@ -405,7 +396,7 @@ pd.Series({
 #
 # `drop_texture=True` removes the 3,364 texture columns and takes the table under 1 GB.
 # You lose the sub-cellular structure that the organelle panel is largely about, so it is
-# a real cost — but a working notebook beats a killed kernel.
+# a real cost but makes your data much smaller as texture features are 75% of your anndata.
 # :::
 
 # %% [markdown]
@@ -414,7 +405,7 @@ pd.Series({
 # :::{note}
 # **This is the first of three cuts, not the only one.** 2,587 columns is small enough to
 # store and too large to analyse: 2,262 of them are texture, and a method handed all of them
-# describes texture. [Step 19](03_normalisation.ipynb) cuts to the **38** marker mean
+# describes texture. [Step 18](03_normalisation.ipynb) cuts to the **38** marker mean
 # intensities and shows why, and
 # [chapter 07](../2_controls/07_umap.ipynb) cuts again to **8** for everything that builds a
 # neighbour graph.
@@ -451,96 +442,75 @@ slim.var.groupby("theme", observed=True).agg(
 ).sort_values("columns", ascending=False)
 
 # %%
-panels.panel_table(slim.var)
+theme_name = "mechanics"
 
-# %% [markdown]
-# Every panel resolves completely. `resolve_panel` is how the theme chapters select
-# their features:
+# Get the list of marker names for that theme
+markers = slim.var.loc[slim.var["theme"] == theme_name, "marker"]
 
-# %%
-signaling = panels.resolve_panel(slim.var, "signaling")
-slim.var.loc[signaling, ["marker", "round", "channel", "statistic"]]
+# As a plain list
+marker_names = markers.unique().tolist()
+print(marker_names)
 
 # %% [markdown]
 # ---
 #
-# ## Exercises
+# ## Summary
+# ### 1. We cleaned the data by:
+# #### 1.1 Relabelling metadata columns in obs
 #
-# ### 1. What did keeping Haralick cost?
+# That allows easy access to well names, conditions and timepoints
 #
-# Compute the slim size with `drop_texture=True` and compare. What fraction of the
-# remaining table is texture? Would you keep it?
+
+# %%
+slim.obs[["well", "row", "column", "condition", "timepoint_h"]].head()
 
 # %% [markdown]
-# :::{admonition} Solution
+# #### 1.2 Giving features proper marker names
+
+# %%
+slim.var.sample(6, random_state=0)[["family", "statistic", "channel", "round", "marker", "theme"]]
+
+# %% [markdown]
+# #### 1.3 Moved constants that were in obs and reports off pre-processing to uns
+
+# %%
+slim.uns # contains constants and report info
+
+# %% [markdown]
+# #### 1.4 Dropped unnecessary columns
+# Such as the repeat measurement of morphology and texture of DAPI on all rounds and failed stainings
+
+# %% [markdown]
+# ------
+#
+# ## Why normalisation is needed
+# An example of the importance of normalisation:
+# ### Cells per well
+
+# %%
+counts = (slim.obs.groupby("well", observed=True)
+          .size().rename("n_cells").reset_index())
+counts["row"] = counts.well.str[0]
+counts["column"] = counts.well.str[1:].astype(int)
+plotting.plate_map(counts, "n_cells", cmap="magma", title="Cells per well")
+
+# %% [markdown]
+# :::{admonition} Explained
 # :class: dropdown
-#
-# ```python
-# lean = decode.slim_mask(var, drop_texture=True)
-# print(decode.slim_report(var, lean, adata.n_obs))
-# print(var[keep].family.value_counts(normalize=True))
-# ```
-#
-# Texture is around 90% of the *slim* table — dropping it takes ~2,500 features down to
-# ~240, and the file from ~7 GB to under 1 GB.
-#
-# Whether to keep it depends on the question. For the signaling panel, mean intensity is
-# most of the signal and texture adds little. For organelles, texture *is* the signal:
-# whether Golgi is compact or dispersed is a texture measurement, not a brightness one.
-# The course keeps it for that reason.
-# :::
-
-# %% [markdown]
-# ### 2. Find a marker that moved rounds
-#
-# Using `slim.var`, find every marker measured in more than one round. Why is it there
-# twice, and which copy should an analysis use?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# per_marker = slim.var.groupby("marker", observed=True)["round"].nunique()
-# per_marker[per_marker > 1]
-# ```
-#
-# Only `PDGFRa`, in round 18. Round 0's copy failed and was dropped by `slim_mask`, so
-# the surviving one is automatically the good one — which is the point of encoding
-# `failed` in the sheet rather than remembering it.
-# :::
-
-# %% [markdown]
-# ### 3. Cells per well
-#
-# Count cells per well and draw it as a plate map (`plotting.plate_map`). Is the
-# variation random, or does it have structure? What would a row-wise gradient mean, given
-# that each condition sits in fixed rows?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# counts = (slim.obs.groupby("well", observed=True)
-#           .size().rename("n_cells").reset_index())
-# counts["row"] = counts.well.str[0]
-# counts["column"] = counts.well.str[1:].astype(int)
-# plotting.plate_map(counts, "n_cells", cmap="magma", title="Cells per well")
-# ```
-#
 # Cell number is itself a phenotype — a compound that kills cells or blocks division
 # gives fewer. So structure here is expected and interesting.
 #
-# The trap is that condition and row are confounded by design. A smooth gradient down the
-# plate could be an edge or pipetting artefact rather than biology, and you cannot
-# separate the two from this plate alone. Chapter 02 checks the controls specifically,
-# because DMSO wells appear in every row and so give a position readout at fixed
-# treatment.
+# The trap is that a smooth gradient down the plate could be an edge or pipetting artefact
+# rather than biology. What lets you tell the two apart is the layout: each condition is
+# spread across three or four different rows, so an artefact that follows the row cuts
+# across conditions instead of following one.
+#
+# Chapter 02 checks the controls specifically, because their treatment is fixed — though
+# they cover only seven of the fourteen rows, so the readout is partial.
 # :::
 
 # %% [markdown]
 # ---
 #
-# **Next:** [02 · QC and normalisation](02_quality_control.ipynb) — border cells,
-# staining thresholds, plate effects, and measuring everything against DMSO.
+# **Next:** [02 · Quality control](02_quality_control.ipynb) — border cells, staining
+# thresholds, and whether plate position is quietly doing any of the work.

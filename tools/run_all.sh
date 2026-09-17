@@ -5,7 +5,7 @@
 #   ./tools/run_all.sh --from 06_pca    # from that chapter onward
 #   KERNEL=python3 ./tools/run_all.sh   # use a different kernel than the notebooks declare
 #
-# ORDER MATTERS. The chapters form a chain: chapter 03 writes mcs2026_clean.h5ad,
+# ORDER MATTERS. The chapters form a chain: chapter 03 writes mcs2026_intensity.h5ad,
 # chapter 04 cuts it into mcs2026_controls.h5ad (Stage 2) and mcs2026_sketch.h5ad
 # (Part 4), and chapters 06-10 each add a slot (X_pca, X_umap, cell_state, paga,
 # X_diffmap) to the controls file. Re-running an early chapter on its own therefore
@@ -15,6 +15,21 @@
 #
 # 01_columns_to_markers needs the full 13 GB feature table; the others read what
 # the chapter before them wrote.
+#
+# DISK. Chapter 03 writes mcs2026_full.h5ad -- every surviving cell x all 2,587
+# surviving columns, as measured -- which supersedes the mcs2026_qc.h5ad that
+# chapter 02 hands it: same values, plus the enriched obs and a provenance record.
+# Once Stage 1 has run end to end, mcs2026_qc.h5ad is a disposable intermediate, so
+# deleting it keeps total disk flat rather than carrying two ~7 GB copies.
+#
+# Chapter 03 also writes mcs2026_intensity_shape.h5ad -- the 38 markers plus five shape
+# features in one X, all in control SDs. Nothing in the chain reads it; it is an
+# optional output for questions that need shape and intensity in the same space.
+#
+# NO WELL-LEVEL FILE. Every statistical test in Part 4 works on well means, but that
+# table is a groupby on the cell object rather than a file, so it can never go stale
+# against the h5ad it came from. Chapters after 03 import nothing from src/mcs2026;
+# they read the h5ad and work from var, obs and uns.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python}"

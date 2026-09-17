@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -26,25 +27,54 @@
 # This is the chapter where the separation into themes has to justify itself.
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
-
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
-proportions = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_proportions.parquet"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
+proportions = pd.read_parquet(DATA / "mcs2026_proportions.parquet")
+
+def effect_table(wells, markers, control="DMSO", by_timepoint=True):
+    """Mean shift from the control, per condition and marker, in control SDs.
+
+    The control is subtracted explicitly. Skipping it looks safe -- the
+    normalisation puts the controls near zero -- but that only holds at the one
+    timepoint the origin came from; everywhere else a plain group mean would
+    report the controls' own development as a treatment effect.
+    """
+    if by_timepoint:
+        table = wells.groupby(["condition", "timepoint"], observed=True)[markers].mean()
+        reference = (wells[wells.condition == control]
+                     .groupby("timepoint", observed=True)[markers].mean())
+        matched = reference.reindex(table.index.get_level_values("timepoint"))
+        return (table - matched.to_numpy()).drop(index=control, level=0, errors="ignore")
+    table = wells.groupby("condition", observed=True)[markers].mean()
+    return (table - wells.loc[wells.condition == control, markers].mean()
+            ).drop(index=control, errors="ignore")
+
+OUTLIER = cells.obs.condition[cells.obs.is_outlier_condition].astype(str).iloc[0]
+
 
 # %% [markdown]
 # ## 1. The four themes in one table
@@ -54,12 +84,12 @@ proportions = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_proportions.parquet")
 
 # %%
 summaries = {}
-for theme in panels.THEMES:
-    markers = analysis.panel_markers(theme, wells.columns)
-    summaries[theme] = analysis.theme_summary(wells, markers)
+for theme in cells.uns["themes"]:
+    markers = [m for m in cells.uns["panels"][theme] if m in set(wells.columns)]
+    summaries[theme] = effect_table(wells, markers, by_timepoint=False).abs().mean(axis=1).sort_values(ascending=False)
 
 overview = pd.DataFrame(summaries)
-overview = overview.drop(index=analysis.OUTLIER_CONDITION, errors="ignore")
+overview = overview.drop(index=OUTLIER, errors="ignore")
 overview = overview.sort_values(list(overview.columns), ascending=False)
 overview.round(2)
 
@@ -147,11 +177,11 @@ print(f"\nmean rank of the expected theme (1 = best of 4): "
 # %%
 all_markers = sorted({
     marker
-    for theme in panels.THEMES
-    for marker in analysis.panel_markers(theme, wells.columns)
+    for theme in cells.uns["themes"]
+    for marker in [m for m in cells.uns["panels"][theme] if m in set(wells.columns)]
 })
-effects = analysis.effect_table(wells, all_markers, by_timepoint=False)
-effects = effects.drop(index=analysis.OUTLIER_CONDITION, errors="ignore")
+effects = effect_table(wells, all_markers, by_timepoint=False)
+effects = effects.drop(index=OUTLIER, errors="ignore")
 correlation = effects.corr(method="spearman")
 print(f"{len(all_markers)} markers x {len(effects)} conditions")
 
@@ -165,8 +195,8 @@ tree = linkage(squareform(distance.values, checks=False), method="average")
 order = [correlation.index[i] for i in leaves_list(tree)]
 
 theme_of = {}
-for theme in panels.THEMES:
-    for marker in analysis.panel_markers(theme, wells.columns):
+for theme in cells.uns["themes"]:
+    for marker in [m for m in cells.uns["panels"][theme] if m in set(wells.columns)]:
         theme_of.setdefault(marker, theme)
 
 fig, axes = plt.subplots(2, 1, figsize=(9, 8), height_ratios=[1, 5])
@@ -176,7 +206,7 @@ for spine in axes[0].spines.values():
     spine.set_visible(False)
 
 im = axes[1].imshow(correlation.loc[order, order].values, cmap="RdBu_r", vmin=-1, vmax=1)
-palette = dict(zip(panels.THEMES, ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]))
+palette = dict(zip(cells.uns["themes"], ["#1f77b4", "#d62728", "#2ca02c", "#9467bd"]))
 axes[1].set_xticks(range(len(order)))
 axes[1].set_xticklabels(order, rotation=90, fontsize=7)
 axes[1].set_yticks(range(len(order)))
@@ -312,8 +342,8 @@ fig.tight_layout()
 # :class: dropdown
 #
 # ```python
-# extra = analysis.panel_markers("cell_cycle", wells.columns)
-# overview["cell_cycle"] = analysis.theme_summary(wells, extra)
+# extra = [m for m in cells.uns["panels"]["cell_cycle"] if m in set(wells.columns)]
+# overview["cell_cycle"] = effect_table(wells, extra, by_timepoint=False).abs().mean(axis=1).sort_values(ascending=False)
 # print(overview.corr(method="spearman").round(2))
 # ```
 #

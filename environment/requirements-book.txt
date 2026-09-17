@@ -7,3 +7,7 @@
 # Jupyter Book 1.x (Sphinx-based). 2.x is a MyST rewrite with a different
 # config format and a different look -- do not upgrade without redoing _config.yml.
 jupyter-book==1.0.4.post1
+
+# Used by tools/build_notebooks.sh, which mirrors the notebooks into book/_src
+# as readable .py. CI runs it with --check so a stale mirror fails the build.
+jupytext==1.19.5

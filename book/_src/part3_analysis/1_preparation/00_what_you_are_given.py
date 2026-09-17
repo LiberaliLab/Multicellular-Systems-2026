@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -14,8 +15,8 @@
 # %% [markdown]
 # # 00 · What you are given
 #
-# Stage 1 turns a raw feature table into something you can analyse. It runs over three
-# notebooks and **sixteen numbered steps**; this one is Steps 1 to 4.
+# Stage 1 turns a raw feature table (which can be parquet or csv) into something you can analyse. It runs over three
+# notebooks and **sixteen numbered steps**; this notebooks deals with Steps 1 to 4.
 #
 # | | |
 # |---|---|
@@ -25,8 +26,7 @@
 # | **Step 4** | Save the tidy metadata tables |
 #
 # :::{note}
-# This notebook needs **only the layout workbook**, which is in the repository. You can
-# run it on a laptop, before the big feature table is anywhere near you.
+# This notebook only exposes the ***setup*** of the experiment. It loads the Excel workbook where we store everything done to the plate.
 # :::
 #
 # ## Step 1 · The data you will analyse
@@ -50,18 +50,19 @@
 # | `obs` | one row per **cell**: well, condition, timepoint, field of view, QC flags | usable |
 # | `var` | one row per **feature** | **4,464 names and nothing else** |
 #
-# `var` is the problem. A feature is called
-# `cells_Intensity_mean_intensity_Texas Red_0`, which tells you the **channel** and the
-# **imaging round** — but not the antibody. Nothing in the file says what was stained.
-#
-# ### Why a whole notebook about a spreadsheet
-#
+# :::{note}
+# - `X`: is a matrix of raw values, always keep your raw data so you can return to it even after normalisation.
+# - `obs`: Gives information regarding many of the plate/well metadata.
+# - `var`: ***The Problem***. A feature is called `cells_Intensity_mean_intensity_Texas Red_0`, which tells you the **channel** and the **imaging round** — but not the antibody. Nothing in the file says what was stained. Therefore, we need to use the excel workbook.
+# :::
+# :::{note}
 # The feature table you will analyse has 4,464 columns with names like
 # `cells_Intensity_mean_intensity_Texas Red_0`. That name tells you the **channel**
 # (`Texas Red`) and the **imaging round** (`0`). It does not tell you what was stained.
 #
 # The antibody is recorded in one place only: the staining sheet of this workbook. Until
 # you join the two, you have 4,464 anonymous numbers. This notebook makes them meet.
+# :::
 
 # %%
 import sys
@@ -73,7 +74,7 @@ import pandas as pd
 # The course package lives in src/; make it importable from the book directory.
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 
-from mcs2026 import layout, panels, plotting
+from mcs2026 import layout, panels, plotting # these are helper functions you dont need to understand. They just help the display of some things
 
 plotting.set_style()
 pd.set_option("display.max_rows", 60)
@@ -162,8 +163,7 @@ fig.tight_layout()
 #
 # **Timepoint varies by column block, condition varies within a block.** Each block of
 # four columns is one timepoint; the condition layout repeats identically inside each
-# block. So timepoint is confounded with plate position by design — worth remembering
-# when you see a left-to-right gradient in chapter 02.
+# block. So timepoint is confounded with plate position by design
 
 # %% [markdown]
 # ### The design is deliberately unbalanced
@@ -189,13 +189,7 @@ print("conditions with more than 3:",
 # control's uncertainty enters every single test, so it is worth measuring better.
 #
 # :::{important}
-# Write this number down: **3 replicate wells per condition per timepoint** (5 for DMSO).
-#
-# The feature table has 733,556 rows, but it does not have 733,556 independent
-# observations. Cells in one well share a well; they were pipetted together, treated
-# together and imaged together. When you test whether a compound changed something, the
-# thing you have 3 of is **wells**, not 40,000 of cells. We come back to this, hard, in
-# chapter 07.
+# **3 replicate wells per condition per timepoint** (5 for DMSO).
 # :::
 
 # %% [markdown]
@@ -208,7 +202,7 @@ print("conditions with more than 3:",
 stainings = layout.read_stainings(XLSX)
 print(f"{len(stainings)} stains over {stainings['round'].nunique()} rounds")
 stainings[stainings.marker != "DAPI"][
-    ["round", "channel", "marker", "species", "intensity_threshold", "haralick_threshold", "failed"]
+    ["round", "channel", "marker", "failed"]
 ]
 
 # %% [markdown]
@@ -246,11 +240,10 @@ stainings[stainings.marker == "PDGFRa"][["round", "channel", "marker", "failed"]
 stainings.channel.value_counts()
 
 # %% [markdown]
-# **5. There are two kinds of threshold.** `intensity_threshold` is the level above which
-# a cell counts as positive for that marker. `haralick_threshold` (written `HLK:3000` in
-# the sheet) is the level used when computing the texture features. Both were set by eye,
-# per marker, by the person who did the staining — they are decisions, not measurements,
-# and they are why the file is named the way it is.
+# **5. Thresholds.** `intensity_threshold` is the level above which a cell counts as positive for that marker. They were set by eye, per marker, by the person who did the staining — they are decisions, not measurements, and they are why the file is named the way it is.
+
+# %%
+stainings[['marker','intensity_threshold']].head()
 
 # %% [markdown]
 # ### The decoder itself
@@ -267,6 +260,10 @@ for key in [("Texas Red", 0), ("FITC", 0), ("FITC", 1), ("Cy5", 24), ("FITC", 28
 # (Ser473)**, and `cells_Texture_LTE_LS_FITC_28` is a texture feature of
 # **Calreticulin**. That is the whole trick, and chapter 01 applies it to all 4,464
 # columns at once.
+#
+# :::{important}
+# There is no need for you to run this conversion; the converted will also be provided. Just gain an understanding of what was done for your presentation.
+# :::
 
 # %% [markdown]
 # ### The four themes
@@ -297,6 +294,10 @@ for group in ("identity", "cell_cycle"):
 #
 # Forcing each marker into exactly one box would make the code tidier and the biology
 # wrong. Panels are **sets**, and a marker may belong to several.
+# :::
+#
+# :::{important}
+# You can decide if there are any extra markers that are important for your analysis. Furthermore, changes in markers belonging to identity and cell cycle are not neccesarily only covariates. But they might also be useful for your analysis, e.g a compound that increases proliferation of a specific cell type might be of extreme interest.
 # :::
 
 # %%
@@ -338,82 +339,27 @@ print(f"  {stainings['round'].nunique()} rounds, 40 stains, {int(stainings.faile
 # %% [markdown]
 # ---
 #
-# ## Exercises
+# ## Summary
 #
-# ### 1. Where is your favourite marker?
+# ### 1. Raw Microscopy data is complex and requires pre-processing to match wells to conditions, stainings and timepoints
 #
-# Write a function `find(marker)` that returns the round and channel a marker was imaged
-# in. Use it to find `LAMP1`, `Sox2` and `GRP78`. Which one is in more than one round?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
+# ### 2. One can group conditions and markers, to more easily understand what needs to be in downstream processing.
 #
-# ```python
-# def find(marker):
-#     hit = stainings[stainings.marker == marker]
-#     return hit[["round", "channel", "failed"]]
+# :::{important} 
+# In this case, we have shown four different groups of markers, with control conditions and an extra set of markers that include cell type markers and cell cycle markers. The same grouping can be performed on conditions by checking the biological target of the compounds applied in each.
 #
-# for m in ["LAMP1", "Sox2", "GRP78", "PDGFRa"]:
-#     print(m); print(find(m))
-# ```
+# Marker Groups:
 #
-# `PDGFRa` is the one in two rounds — it failed in round 0 and was re-stained in round
-# 18. `LAMP1` is round 21 / Cy5, `Sox2` round 3 / Cy5, `GRP78` round 18 / Texas Red.
+# signaling    Foxo3a, Foxo1, FGFR1, PDGFRa, beta-Catenin, YAP1, p-S6, p-AKT, c-Myc, RNAPII-pS5
+# mechanics    p-MyosinIIa, a-Tubulin, ZO-1, E-cadherin, Fibronectin, LAMA4, LaminA, LaminB1
+# metabolism   Mitochondria, Pmp70, GRP78, HSP90, Calreticulin, p-S6, p-AKT
+# organelles   EEA1, GM130, Giantin, LAMP1, DDX6, Calreticulin, GRP78, Pmp70, Mitochondria, LaminA, LaminB1
+#
+# identity     Oct4, Nanog, Sox2, GATA3, GATA6, PDGFRa, GATA4, SOX17
+# cell_cycle   CyclinA2, p21, Ki67
 # :::
-
-# %% [markdown]
-# ### 2. Which channel did the most work?
 #
-# Count the non-DAPI stains per channel. Why do you think they are not equal? (Look at
-# which rounds have only one or two antibodies.)
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
 #
-# ```python
-# non_dapi = stainings[stainings.marker != "DAPI"]
-# print(non_dapi.channel.value_counts())
-# print(non_dapi.groupby("round").size().sort_values())
-# ```
-#
-# Cy5 is used in 17 of 18 rounds, Texas Red in only 10. Rounds 21, 22 and 25 carry a
-# single antibody each. A 4i round is expensive and can fail, so a round is often run
-# with fewer antibodies than the maximum — either because a compatible antibody was not
-# available for that host species, or because the round was a repeat of something that
-# failed earlier.
-# :::
-
-# %% [markdown]
-# ### 3. Plate maps that show a problem
-#
-# Draw a plate map coloured by `condition_code` but for **one timepoint only** (say
-# 84 h). Does the condition layout repeat identically in every block? What would it cost
-# you if it did *not* — that is, if condition and column were confounded differently at
-# each timepoint?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# block = wells[wells.timepoint_h == 84]
-# plotting.plate_map(block, "compound", title="Conditions at 84 h")
-# ```
-#
-# The layout is identical in every block, which is good: it means condition and *row* are
-# confounded (each condition sits in fixed rows) but condition and *timepoint* are not.
-#
-# If the layout differed per block you could not tell a timepoint effect from a position
-# effect, because each condition would sit in a different part of the plate at each
-# timepoint. As it is, a position artefact hits every timepoint the same way, so
-# comparisons *across* timepoints stay interpretable.
-#
-# The cost of the current design is the other way round: because each condition always
-# occupies the same rows, a row-wise artefact (an edge effect, a pipetting gradient) is
-# indistinguishable from a condition effect. That is what chapter 02 checks.
-# :::
 
 # %% [markdown]
 # ---

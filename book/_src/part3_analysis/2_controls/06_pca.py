@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -32,7 +33,7 @@
 #
 # :::{note}
 # **No scaling step here, and no sampling.** Stage 1 already did the first —
-# [Step 19](../1_preparation/03_normalisation.ipynb) put every value in control-cell SD
+# [Step 18](../1_preparation/03_normalisation.ipynb) put every value in control-cell SD
 # units — and the second is not needed:
 # [chapter 04](../1_preparation/04_subsetting_and_sketching.ipynb) cut the data to the two
 # control conditions, which is small enough to use **every cell of**. This chapter opens
@@ -40,7 +41,7 @@
 # :::
 
 # %%
-import sys
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -49,15 +50,18 @@ import pandas as pd
 import scanpy as sc
 from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-
-from mcs2026 import plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 pd.set_option("display.width", 140)
 
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"))
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 names = cells.var_names.tolist()
 timepoint = cells.obs.timepoint_h.astype(int).values
 condition = cells.obs.condition.astype(str).values
@@ -241,7 +245,7 @@ pd.DataFrame({
 # A fair worry: these are 32 untreated wells, and a first component that eats half the
 # variance might be something peculiar to them.
 #
-# It is not. Run the same PCA on `mcs2026_clean.h5ad` — all eighteen conditions, 653,000
+# It is not. Run the same PCA on `mcs2026_intensity.h5ad` — all eighteen conditions, 653,000
 # cells — and PC1 takes **44.5%** against the share printed above, correlating with the
 # mean of all markers at 0.996 and with DAPI at +0.66. Almost the same numbers.
 #
@@ -264,7 +268,7 @@ pd.DataFrame({
 # %%
 cells.uns["pca"]["features"] = "the 38 normalised markers"
 print("  obsm:", list(cells.obsm), " varm:", list(cells.varm))
-cells.write_h5ad(H5AD_SLIM.with_name("mcs2026_controls.h5ad"), compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
 cells
 
 # %% [markdown]
@@ -297,7 +301,7 @@ cells
 # %% [markdown]
 # ### 2. What happens with all 2,587 features?
 #
-# Re-run the PCA on `mcs2026_qc.h5ad` — every surviving column instead of the 38 markers.
+# Re-run the PCA on `mcs2026_full.h5ad` — every surviving column instead of the 38 markers.
 # How much variance does PC1 take, and what loads on it?
 
 # %% [markdown]
@@ -317,7 +321,7 @@ cells
 #
 # This one needs the **full** object, not the controls: the outlier flagged in
 # [Step 16](../1_preparation/03_normalisation.ipynb) is a treatment, and there are no
-# treatments in this file. Fit the PCA on `mcs2026_clean.h5ad` twice, with and without the
+# treatments in this file. Fit the PCA on `mcs2026_intensity.h5ad` twice, with and without the
 # flagged cells. Does the variance explained by PC1 change? Does PC2 start describing
 # something new?
 
@@ -326,7 +330,7 @@ cells
 # :class: dropdown
 #
 # ```python
-# full = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+# full = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 # kept = full[~full.obs.is_outlier_condition].copy()
 # sc.pp.pca(full, n_comps=10, random_state=0)
 # sc.pp.pca(kept, n_comps=10, random_state=0)

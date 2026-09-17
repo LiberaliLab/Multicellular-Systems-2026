@@ -332,7 +332,7 @@ def fig_rename(c) -> str:
 def fig_clean_object(c) -> str:
     W, H = 880, 470
     b = [text(48, 40, "What Stage 1 hands over", fill=c["fg"], size=17, weight=600),
-         text(48, 63, "mcs2026_clean.h5ad — the same object, with every slot filled in",
+         text(48, 63, "mcs2026_intensity.h5ad — the same object, with every slot filled in",
               fill=c["muted"], size=13)]
 
     ox, oy = 48, 168
@@ -346,8 +346,8 @@ def fig_clean_object(c) -> str:
     b.append(rect(ox, oy, ow, oh, c["panel"], c["panel_edge"], rx=5))
     b.append(text(ox + 10, oy - 10, "obs — one row per cell", fill=c["fg"], size=12, weight=600))
     for i, name in enumerate(["well", "condition", "timepoint_h",
-                              "replicate", "area", "dapi", "…"]):
-        new = name in {"replicate", "area", "dapi"}
+                              "area", "roundness", "dapi", "…"]):
+        new = name in {"area", "roundness", "dapi"}
         weight = 700 if new else 400
         fill = c["accent"] if new else c["muted"]
         b.append(text(ox + 12, oy + 26 + i * 24, name, fill=fill, size=11,
@@ -392,9 +392,62 @@ def fig_clean_object(c) -> str:
                   "One read_h5ad, and every later chapter starts with no set-up.",
                   fill=c["fg"], size=13))
     b.append(text(48, H - 22,
-                  "The wide 2,587-column table stays on disk as mcs2026_slim.h5ad.",
+                  "The wide 2,587-column table stays on disk as mcs2026_full.h5ad.",
                   fill=c["muted"], size=12.5))
     return svg(W, H, b, c)
+
+
+# --------------------------------------------------------------------------
+# figure 7 — what Step 17 does to one number
+# --------------------------------------------------------------------------
+def fig_normalisation_formula(c) -> str:
+    W, H = 880, 316
+    bw, bh, gap = 150, 96, 62
+    y = 112
+    # label, value, and the "why" that sits under the box
+    boxes = [
+        ("as measured",      "x = 120",  "mean intensity, a.u."),
+        ("on a log scale",   "6.92",     "a doubling is always +1"),
+        ("from the origin",  "1.04",     "staining drift removed"),
+        ("in control SDs",   "z = +1.47", "comparable across markers"),
+    ]
+    # the operation that sits above each arrow
+    steps = ["log\u2082(x + 1)", "\u2212 B\u2083\u2086", "\u00f7 S"]
+    notes = ["", "origin = 5.88", "unit = 0.71"]
+
+    b = [text(48, 40, "What Step 17 does to one number", fill=c["fg"], size=17, weight=600),
+         text(48, 63, "one Fibronectin cell in a 36 h control well, through the three steps",
+              fill=c["muted"], size=13)]
+
+    for i, (label, value, why) in enumerate(boxes):
+        x = 48 + i * (bw + gap)
+        last = i == len(boxes) - 1
+        b.append(rect(x, y, bw, bh,
+                      c["accent_soft"] if last else c["panel"],
+                      c["accent"] if last else c["panel_edge"],
+                      rx=5, sw=1.8 if last else 1.2))
+        b.append(text(x + bw / 2, y + 30, label, fill=c["muted"], size=11.5, anchor="middle"))
+        b.append(text(x + bw / 2, y + 64, value, fill=c["accent"] if last else c["fg"],
+                      size=19, weight=600, anchor="middle", mono=True))
+        b.append(text(x + bw / 2, y + bh + 24, why, fill=c["muted"], size=11,
+                      anchor="middle", style="italic"))
+        if not last:
+            ax = x + bw + 8
+            b.append(line(ax, y + bh / 2, ax + gap - 16, y + bh / 2, c["muted"], marker=True))
+            b.append(text(ax + (gap - 16) / 2, y - 6, steps[i], fill=c["fg"],
+                          size=12.5, weight=600, anchor="middle", mono=True))
+            if notes[i]:
+                # above the arrow, not beside it: the gap is only 46 px wide, so a
+                # label placed level with the boxes is clipped by the next one.
+                b.append(text(ax + (gap - 16) / 2, y - 24, notes[i],
+                              fill=c["warm"], size=10.5, anchor="middle", mono=True))
+
+    b.append(text(48, H - 26,
+                  "Both constants come from the controls, so nothing a treatment did can "
+                  "reach them.",
+                  fill=c["fg"], size=12.5))
+    return svg(W, H, b, c)
+
 
 
 FIGURES = {
@@ -404,6 +457,7 @@ FIGURES = {
     "feature_table_anatomy": fig_table_anatomy,
     "feature_rename": fig_rename,
     "clean_object": fig_clean_object,
+    "normalisation_formula": fig_normalisation_formula,
 }
 
 

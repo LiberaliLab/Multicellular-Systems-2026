@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -32,7 +33,8 @@
 # 5. what happens to single cells over time
 
 # %%
-import sys
+import os
+from math import comb
 from pathlib import Path
 
 import anndata as ad
@@ -40,27 +42,107 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from scipy import stats
 
-sys.path.insert(0, str(Path.cwd().parents[1] / "src"))
+plt.rcParams.update({          # the house style, no package needed
+    "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
+    "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": False,
+    "legend.frameon": False, "pdf.fonttype": 42, "ps.fonttype": 42,
+})
 
-from mcs2026 import analysis, panels, plotting
-from mcs2026.config import H5AD_SLIM
-
-plotting.set_style()
+def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
+    """A figure with `n` axes on a grid, the unused ones removed."""
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, squeeze=False,
+                             figsize=(size[0] * ncols, size[1] * nrows))
+    flat = axes.ravel()
+    for ax in flat[n:]:
+        ax.remove()
+    return fig, flat[:n]
 pd.set_option("display.width", 140)
+
+# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
 THEME = "signaling"
 
-wells = pd.read_parquet(H5AD_SLIM.with_name("mcs2026_wells.parquet"))
-cells = sc.read_h5ad(H5AD_SLIM.with_name("mcs2026_clean.h5ad"))
+cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+wells = (cells.to_df()
+         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
+                   cells.obs.well.astype(str)], observed=True).mean()
+         .rename_axis(["condition", "timepoint", "well"]).reset_index())
 print(f"{len(wells)} wells, {cells.n_obs:,} cells")
+
+def effect_table(wells, markers, control="DMSO", by_timepoint=True):
+    """Mean shift from the control, per condition and marker, in control SDs.
+
+    The control is subtracted explicitly. Skipping it looks safe -- the
+    normalisation puts the controls near zero -- but that only holds at the one
+    timepoint the origin came from; everywhere else a plain group mean would
+    report the controls' own development as a treatment effect.
+    """
+    if by_timepoint:
+        table = wells.groupby(["condition", "timepoint"], observed=True)[markers].mean()
+        reference = (wells[wells.condition == control]
+                     .groupby("timepoint", observed=True)[markers].mean())
+        matched = reference.reindex(table.index.get_level_values("timepoint"))
+        return (table - matched.to_numpy()).drop(index=control, level=0, errors="ignore")
+    table = wells.groupby("condition", observed=True)[markers].mean()
+    return (table - wells.loc[wells.condition == control, markers].mean()
+            ).drop(index=control, errors="ignore")
+
+def rank_effects(wells, markers, control="DMSO", drop=None):
+    """Every condition x marker pair, ranked by absolute shift.
+
+    `p_floor` is the smallest p-value this design can produce: with n treated
+    and m control wells there are C(n+m, n) orderings, so a two-sided
+    Mann-Whitney can never go below 2/C(n+m, n). A row sitting at the floor is
+    not more significant than another row at the floor, whatever its effect size.
+    """
+    frame = wells if drop is None else wells[wells.condition != drop]
+    reference = frame[frame.condition == control]
+    rows = []
+    for condition, block in frame.groupby("condition", observed=True):
+        if condition == control:
+            continue
+        for marker in markers:
+            treated, base = block[marker].dropna(), reference[marker].dropna()
+            if len(treated) < 3 or len(base) < 3:
+                continue
+            rows.append({"condition": condition, "marker": marker,
+                         "shift": treated.mean() - base.mean(), "n_wells": len(treated),
+                         "p": stats.mannwhitneyu(treated, base).pvalue,
+                         "p_floor": 2 / comb(len(treated) + len(base), len(treated))})
+    out = pd.DataFrame(rows)
+    out["abs_shift"] = out["shift"].abs()
+    out["at_p_floor"] = np.isclose(out["p"], out["p_floor"])
+    return out.sort_values("abs_shift", ascending=False).reset_index(drop=True)
+
+def compare_to_control(wells, marker, condition, control="DMSO"):
+    """One marker, one condition, per timepoint, against the control wells."""
+    rows = []
+    for timepoint, block in wells.groupby("timepoint", observed=True):
+        treated = block.loc[block.condition == condition, marker].dropna()
+        base = block.loc[block.condition == control, marker].dropna()
+        if len(treated) < 2 or len(base) < 2:
+            continue
+        rows.append({"timepoint": timepoint, "n_treated": len(treated),
+                     "n_control": len(base),
+                     "shift": round(treated.mean() - base.mean(), 2),
+                     "p": round(stats.mannwhitneyu(treated, base).pvalue, 4),
+                     "p_floor": round(2 / comb(len(treated) + len(base), len(treated)), 4)})
+    return pd.DataFrame(rows)
+
+OUTLIER = cells.obs.condition[cells.obs.is_outlier_condition].astype(str).iloc[0]
+
 
 # %% [markdown]
 # ## 1. The panel
 
 # %%
-markers = analysis.panel_markers(THEME, wells.columns)
-print(f"{len(markers)} of {len(panels.markers(THEME))} panel markers present:")
+markers = [m for m in cells.uns["panels"][THEME] if m in set(wells.columns)]
+print(f"{len(markers)} of {len(cells.uns['panels'][THEME])} panel markers present:")
 markers
 
 # %% [markdown]
@@ -81,7 +163,7 @@ lookup[["marker", "round", "channel", "intensity_threshold"]].sort_values("round
 # not the controls' own development across the time course.
 
 # %%
-effects = analysis.effect_table(wells, markers, by_timepoint=False)
+effects = effect_table(wells, markers, by_timepoint=False)
 effects.round(2)
 
 # %%
@@ -109,7 +191,7 @@ fig.tight_layout()
 
 # %%
 fig, ax = plt.subplots(figsize=(8.5, 5.5))
-without_outlier = effects.drop(index=analysis.OUTLIER_CONDITION, errors="ignore")
+without_outlier = effects.drop(index=OUTLIER, errors="ignore")
 order = without_outlier.abs().mean(axis=1).sort_values(ascending=False).index
 matrix = without_outlier.loc[order]
 limit = np.nanpercentile(np.abs(matrix.values), 99)
@@ -125,7 +207,7 @@ fig.tight_layout()
 # ## 3. Rank the effects — honestly
 
 # %%
-ranked = analysis.rank_effects(wells, markers)
+ranked = rank_effects(wells, markers, drop=OUTLIER)
 ranked.head(15).round(3)
 
 # %% [markdown]
@@ -150,10 +232,10 @@ ranked.groupby("condition")["abs_shift"].mean().sort_values(ascending=False).hea
 # ribosomal protein S6. So p-S6 should fall.
 
 # %%
-analysis.compare_to_control(wells, "p-S6", "Sapanisertib/INK128")
+compare_to_control(wells, "p-S6", "Sapanisertib/INK128")
 
 # %%
-analysis.compare_to_control(wells, "p-S6", "MK-2206")
+compare_to_control(wells, "p-S6", "MK-2206")
 
 # %% [markdown]
 # It does — several control SDs down at 36, 48 and 60 hours, for both the mTOR inhibitor
@@ -166,7 +248,7 @@ analysis.compare_to_control(wells, "p-S6", "MK-2206")
 
 # %%
 pd.concat(
-    [analysis.compare_to_control(wells, "p-AKT", c).assign(condition=c)
+    [compare_to_control(wells, "p-AKT", c).assign(condition=c)
      for c in ["MK-2206", "Wortmannin", "Sapanisertib/INK128"]]
 )[["condition", "timepoint", "shift", "p", "p_floor"]]
 
@@ -185,7 +267,7 @@ pd.concat(
 
 # %%
 pd.concat(
-    [analysis.compare_to_control(wells, "Foxo1", c).assign(condition=c)
+    [compare_to_control(wells, "Foxo1", c).assign(condition=c)
      for c in ["MK-2206", "Wortmannin", "Sapanisertib/INK128"]]
 )[["condition", "timepoint", "shift", "p"]]
 
@@ -202,7 +284,7 @@ pd.concat(
 # their signaling" — a smaller question with a readable answer.
 
 # %%
-usable = wells[wells.condition != analysis.OUTLIER_CONDITION]
+usable = wells[wells.condition != OUTLIER]
 space = ad.AnnData(usable[markers].fillna(0).to_numpy(dtype="float32"))
 sc.pp.pca(space, n_comps=4, random_state=0)
 coords, variance = space.obsm["X_pca"], space.uns["pca"]["variance_ratio"]
@@ -261,7 +343,7 @@ frame = pd.DataFrame({
     "timepoint": cells.obs.timepoint_h.astype(int).values,
 })
 
-fig, axes = plotting.panel_grid(4, ncols=4, size=(3.3, 2.9))
+fig, axes = panel_grid(4, ncols=4, size=(3.3, 2.9))
 for ax, timepoint in zip(axes, [36, 48, 60, 84]):
     block = frame[frame.timepoint == timepoint]
     for condition, colour in [("DMSO", "0.35"), ("Sapanisertib/INK128", "firebrick")]:
@@ -288,11 +370,11 @@ fig.tight_layout()
 # compared:
 
 # %%
-summary = analysis.theme_summary(wells, markers)
+summary = effect_table(wells, markers, by_timepoint=False).abs().mean(axis=1).sort_values(ascending=False)
 summary.head(8).round(2)
 
 # %%
-summary.to_frame(THEME).to_parquet(H5AD_SLIM.with_name(f"theme_{THEME}.parquet"))
+summary.to_frame(THEME).to_parquet(DATA / f"theme_{THEME}.parquet")
 print(f"saved theme summary for {THEME}")
 
 # %% [markdown]
@@ -317,7 +399,8 @@ print(f"saved theme summary for {THEME}")
 # in culture for 84 h are further along in differentiation than at 36 h, so markers
 # tracking that transition should dominate the axis that separates timepoints. If instead
 # PC1 loads mostly on one noisy marker, you are looking at a technical axis, and the
-# marker-level control SDs from [Step 13](../part3_analysis/1_preparation/02_quality_control.ipynb) will tell you which.
+# per-marker control spread from
+# [Step 17](../part3_analysis/1_preparation/03_normalisation.ipynb) will tell you which.
 # :::
 
 # %% [markdown]
@@ -334,7 +417,7 @@ print(f"saved theme summary for {THEME}")
 # ```python
 # for marker in ["p-S6", "Foxo1", "p-AKT"]:
 #     print(marker)
-#     print(analysis.compare_to_control(wells, marker, "IGF"))
+#     print(compare_to_control(wells, marker, "IGF"))
 # ```
 #
 # The effect is much weaker than for the inhibitors, and that is worth thinking about
@@ -358,8 +441,8 @@ print(f"saved theme summary for {THEME}")
 #
 # ```python
 # THEME = "cell_cycle"
-# markers = analysis.panel_markers(THEME, wells.columns)
-# analysis.rank_effects(wells, markers).head(10)
+# markers = [m for m in cells.uns["panels"][THEME] if m in set(wells.columns)]
+# rank_effects(wells, markers, drop=OUTLIER).head(10)
 # ```
 #
 # Expect Cycloheximide (translation block) and PMA to show up. Cyclin A2 marks S/G2 and

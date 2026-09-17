@@ -5,6 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
+#       jupytext_version: 1.19.5
 #   kernelspec:
 #     display_name: Python (MCS 2026)
 #     language: python
@@ -15,7 +16,9 @@
 # # 02 · Quality control
 #
 # Steps 11 to 14. Everything here is about **what to throw away, and why** — first cells,
-# then whole wells, then a check that plate position is not quietly doing the work.
+# then whole wells, then a check on whether plate position is quietly doing the work.
+#
+# This is of vital importance because with cell culture experiments with imaging or even RNAseq readouts one can get well/plate bias. Slight differences of positioning within a plate or even stacking of plates in the incubator can cause differential evaporation and/or reduction in cell growth. Furthermore, hand or automated staining protocols can always carry systematic/random errors. All of this can be plotted and possibly filtered, to remove noise from our data.
 #
 # | | |
 # |---|---|
@@ -66,7 +69,9 @@ pd.DataFrame({
 })
 
 # %% [markdown]
-# Before dropping them, look at *how* wrong they are — partly to justify the decision,
+# Is border internal are cells that fell in the middle between two imaging fields of view (FOV); those can be stitched back together. Thus rebuilding the entire cell even though from separate FOVs. However we need to look at is border external, these cells are normally instantly excluded for two reasons, firstly most times part of the cell is cut off and the segmentation mask is not representative anymore, secondly they sit at the edge and can behave differently because of physical gradients within a well. 
+#
+# However, before dropping them, we can look at *how* wrong they are — partly to justify the decision,
 # partly because "border cells are smaller" is the kind of claim that should be checked
 # rather than assumed.
 
@@ -83,6 +88,9 @@ for is_border, label in [(False, "interior"), (True, "touches a field edge")]:
 ax.set(xlabel="cell area (px)", ylabel="density", title="Border cells are truncated")
 ax.legend()
 
+# %% [markdown]
+# In this case one can see a slight shif to the left indicating an average smaller cell area, however more extreme cases do exist. We anyways remove, these cells from the downstream analysis as a precaution.
+
 # %%
 clean = adata[~adata.obs.is_border_external.values].copy()
 print(f"{adata.n_obs:,} cells -> {clean.n_obs:,} "
@@ -94,10 +102,9 @@ print(f"{adata.n_obs:,} cells -> {clean.n_obs:,} "
 
 # %% [markdown]
 # :::{note}
-# We keep the internal-border cells. They sit on a seam between two imaged fields of the
-# same well, where the image is still complete — the flag marks a stitching boundary, not
-# a truncated cell. Dropping them too is defensible; dropping them *without saying so* is
-# not.
+# All border cells go. `is_border_internal` turns out to be a subset of
+# `is_border_external`, so filtering on the external flag removes both and the
+# distinction never arises.
 # :::
 
 # %% [markdown]
@@ -113,25 +120,27 @@ print(f"{adata.n_obs:,} cells -> {clean.n_obs:,} "
 counts = (clean.obs.groupby(["well", "timepoint_h", "condition"], observed=True)
           .size().rename("cells").reset_index())
 counts["timepoint_h"] = counts["timepoint_h"].astype(int)
-counts.cells.describe()[["count", "mean", "min", "50%", "max"]].round(0)
+counts.groupby("timepoint_h")["cells"].describe()[["count", "mean", "min", "max"]].round(0)
 
 # %% [markdown]
-# A 14-fold range between the emptiest and fullest well. It is tempting to set a floor
-# here and move on. Do not — first check whether the spread means what it looks like.
-
-# %%
-counts.groupby("timepoint_h")["cells"].describe()[["count", "mean", "min", "50%", "max"]].round(0)
-
-# %% [markdown]
-# **The count is mostly telling you the timepoint.** The cells are still dividing, so an
+# **The mean is mostly telling you the timepoint.** The cells are still dividing, so an
 # 84-hour well holds three to four times what a 36-hour well does. A single global
 # threshold would delete most of the 36-hour plate for being 36 hours old.
+#
+# :::{note}
+# The count indicates the number of wells for that timepoint.
+# The mean tells you the mean number of cells for that timepoint.
+# :::
 #
 # So compare each well to **its own timepoint**.
 
 # %%
+# Here we calculate how far away is each well from the timepoint median
 counts["share"] = counts.groupby("timepoint_h")["cells"].transform(lambda s: s / s.median())
-counts.nsmallest(8, "share")[["well", "timepoint_h", "condition", "cells", "share"]].round(3)
+counts["share"]
+
+# %% [markdown]
+# ### We can plot this deviation from the timepoint median
 
 # %%
 fig, ax = plt.subplots(figsize=(7, 3.6))
@@ -144,6 +153,12 @@ ax.annotate("a third of the timepoint median", (86, 0.35), fontsize=9, color="fi
 ax.set(xlabel="timepoint (h)", ylabel="cells, as a share of the timepoint median",
        title="Each well against its own timepoint")
 ax.set_xticks([36, 48, 60, 84])
+
+# %% [markdown]
+# ### We can also flag these wells that are outliers
+
+# %%
+counts.nsmallest(8, "share")[["well", "timepoint_h", "condition", "cells", "share"]].round(3)
 
 # %% [markdown]
 # One well sits far below everything else. Look at the bottom of the list again:
@@ -180,31 +195,6 @@ counts.nsmallest(6, "share").merge(
 #
 # The instinct is to flag outliers statistically — z-score each well within its own
 # condition and timepoint, and drop anything extreme. Try it.
-
-# %%
-counts["z"] = counts.groupby(["condition", "timepoint_h"], observed=True)["cells"].transform(
-    lambda s: (s - s.mean()) / s.std(ddof=0)
-)
-counts.z.abs().nlargest(10).round(4).to_frame("|z|")
-
-# %% [markdown]
-# Look at the values, not the ranking. Most of them are **exactly 1.4142**, and a few sit
-# a little higher. Neither is a coincidence.
-#
-# With $n$ points, the largest possible $|z|$ computed with the population SD is
-# $\sqrt{n-1}$. That is a hard ceiling set by the group size alone:
-
-# %%
-sizes = (counts.groupby(["condition", "timepoint_h"], observed=True)
-         .agg(n=("cells", "size"), worst=("z", lambda s: s.abs().max()))
-         .reset_index())
-pd.DataFrame({
-    "wells in group": sorted(sizes.n.unique()),
-    "groups": [int((sizes.n == k).sum()) for k in sorted(sizes.n.unique())],
-    "ceiling sqrt(n-1)": [round(float(np.sqrt(k - 1)), 4) for k in sorted(sizes.n.unique())],
-    "worst observed": [round(float(sizes.loc[sizes.n == k, "worst"].max()), 4)
-                       for k in sorted(sizes.n.unique())],
-}).set_index("wells in group")
 
 # %% [markdown]
 # The three-well groups — every condition except DMSO — **hit their ceiling exactly**. The
@@ -298,45 +288,13 @@ print(f"  wells  : {clean.obs.well.nunique()} remain")
 marker_columns = analysis.marker_columns(clean.var)
 wells = analysis.by_well(clean, marker_columns, name_by="marker")
 names = [clean.var.loc[c, "marker"] for c in marker_columns]
-print(f"{len(wells)} wells x {len(marker_columns)} markers")
-wells.iloc[:4, :6]
 
-# %%
-controls = wells[wells.condition == "DMSO"]
-control_variation = np.log2(controls[names] + 1).std()
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 3.4))
-axes[0].hist(control_variation, bins=20, color="0.4")
-axes[0].set(xlabel="SD across DMSO wells (log2)", ylabel="markers",
-            title="How reproducible is a control well?")
-by_row = np.log2(controls.assign(row=controls.well.str[0]).set_index("row")[names] + 1
-                 ).groupby(level=0).mean()
-im = axes[1].imshow((by_row - by_row.mean()).T, aspect="auto", cmap="RdBu_r",
-                    vmin=-0.5, vmax=0.5)
-axes[1].set(xticks=range(len(by_row)), xticklabels=by_row.index, yticks=[],
-            ylabel="markers", xlabel="plate row", title="DMSO wells by row (centred)")
-fig.colorbar(im, ax=axes[1], shrink=0.8, label="log2 vs mean")
-fig.tight_layout()
-
-# %% [markdown]
-# **Why only DMSO, when there are two vehicles?** Because they sit in *disjoint* rows —
-# DMSO in D/H/I/O, PBS in B/L/M. Pool them and any real difference between the two vehicles
-# would arrive looking exactly like a row effect, since no row contains both. One vehicle at
-# a time is the only version of this plot that means anything.
-
-# %%
-print(f"median control-well SD: {control_variation.median():.3f} log2 "
-      f"({2 ** control_variation.median() - 1:.1%} on the linear scale)")
-print(f"noisiest markers:\n{control_variation.nlargest(4).round(3).to_string()}")
-
-# %% [markdown]
-# That median SD is the **yardstick** for the rest of Part 3. An effect of 0.2 log2 is
-# within the noise of two control wells; an effect of 1.5 log2 is not.
-#
-# The yardstick is *per marker*, not global. A few markers are far noisier than the rest —
-# usually the dim ones, where a small absolute difference is a large relative one. Scaling
-# each marker by **its own** control SD ([Step 17](03_normalisation.ipynb)) is what keeps
-# those from either shouting or being ignored.
+wells["mean_intensity"] = np.log2(wells[names] + 1).mean(axis=1)
+wells["row"] = wells.well.str[0]
+wells["column"] = wells.well.str[1:].astype(int)
+plotting.plate_map(wells, "mean_intensity", cmap="magma",
+                   title="Mean marker intensity per well (log2)")
 
 # %% [markdown]
 # ## Step 14 · Save the cleaned table
@@ -356,74 +314,8 @@ print(f"  dropped wells recorded in uns: {clean.uns['dropped_wells']}")
 # | `B23` | one well, 9% of its timepoint's cell count |
 # | *nothing else* | low-yield INK128 wells kept — that is the drug working |
 #
-# ---
 #
-# ## Exercises
 #
-# ### 1. Where does a threshold start deleting biology?
-#
-# Sweep a minimum-cells threshold from 10% to 60% of the timepoint median. At each value,
-# how many wells would you drop, and how many of those are INK128?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for cut in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]:
-#     hit = counts[counts.share < cut]
-#     ink = (hit.condition == "Sapanisertib/INK128").sum()
-#     print(f"  <{cut:.0%}: {len(hit):2d} wells, of which INK128: {ink}")
-# ```
-#
-# Below about 40% you only ever catch `B23`. Above it you start deleting INK128 wells, and
-# every one you remove weakens the very result the experiment was designed to find.
-#
-# The gap between 10% and 45% is what makes this decision safe. Had `B23` sat at 40% there
-# would be no defensible threshold, and the honest move would be to keep everything and
-# note the concern.
-# :::
-
-# %% [markdown]
-# ### 2. Does dropping B23 change anything?
-#
-# `B23` is one well of Cnd6 (PF-4708671) at 84 h — so that comparison now rests on two
-# wells rather than three. Compute the mean of a few markers for Cnd6 at 84 h with and
-# without it. Does the answer move?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# The means barely shift, because `B23` contributed few cells to begin with — which is
-# exactly why it was dropped.
-#
-# The cost is not in the mean, it is in the **replication**: that comparison now has
-# n = 2. With two wells a Mann-Whitney test cannot return anything below 2/C(7,2) = 0.095,
-# so no result for Cnd6 at 84 h can reach significance at all. Dropping a well is cheap in
-# cells and expensive in evidence, and that is the trade to keep in mind.
-# :::
-
-# %% [markdown]
-# ### 3. Is position doing anything?
-#
-# The DMSO-by-row heatmap is centred, so structure would show as consistent colour down a
-# column. Is any row systematically different? Try the same by plate *column*.
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# by_col = (np.log2(controls.assign(col=controls.well.str[1:].astype(int))
-#                   .set_index("col")[names] + 1).groupby(level=0).mean())
-# print((by_col - by_col.mean()).abs().mean(axis=1).round(3))
-# ```
-#
-# Plate **column** is confounded with timepoint here — columns 2–5 are all 36 h — so a
-# column-wise difference is expected and is not an artefact. Row is the axis that carries
-# no design meaning, which is why it is the one worth checking.
-# :::
 
 # %% [markdown]
 # ---
