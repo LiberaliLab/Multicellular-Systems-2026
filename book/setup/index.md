@@ -1,19 +1,18 @@
 # Setup
 
-Do these four things, in this order, **before the first session**.
+Do these three things, in this order, **before the first session**.
 
 1. **[Euler and JupyterHub](euler_jupyterhub.md)** — get onto the cluster and start a
    notebook server in your browser.
 2. **[The Python environment](python_environment.md)** — one virtual environment, one
    kernel, used by Parts 1 and 3.
-3. **[The data](data.md)** — point the notebooks at the plate and the feature table.
-4. **[Napari](napari_local.md)** — a *separate* install on your own laptop, for the
-   optional napari part. Skip it unless you want that part.
+3. **[The data](data.md)** — where the plate and the feature table live on Euler.
 
-```{warning}
-Steps 2 and 4 are deliberately separate environments, and step 4 is deliberately not on
-Euler. The reasons are on those pages. Installing napari into the Euler environment will
-not work, and will break the Euler environment while it fails.
+```{note}
+The optional [napari part](../part2_napari/intro.md) needs a *separate* install on your own
+laptop, and its setup page lives with it rather than here. You only need it if you do that
+part. Installing napari into the Euler environment will not work, and will break the Euler
+environment while it fails.
 ```
 
 ## If something goes wrong

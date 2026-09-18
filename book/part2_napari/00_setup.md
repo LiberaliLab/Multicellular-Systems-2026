@@ -1,6 +1,6 @@
 # Napari (on your laptop)
 
-The optional [napari part](../part2_napari/intro.md) runs on **your own machine**, not on
+This part runs on **your own machine**, not on
 Euler. This is the one place the course
 leaves the cluster, and the reason is worth understanding rather than just working
 around.

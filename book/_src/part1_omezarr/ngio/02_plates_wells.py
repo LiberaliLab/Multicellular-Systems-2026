@@ -21,7 +21,6 @@
 # - navigate rows, columns, wells, images and acquisitions
 # - open images across the plate in parallel
 # - **concatenate one table across every well in a single call**
-# - write the result back into the plate
 #
 # This is the chapter that matters most. Everything before it worked on one image;
 # a screen is 384 of them, and the difference between a loop you write by hand and one
@@ -187,57 +186,6 @@ if well_column is not None:
     counts = frame.groupby(well_column).size().rename("objects")
     print(counts.describe()[["count", "mean", "min", "max"]].round(1).to_string())
     counts.head()
-
-# %% [markdown]
-# ## Writing back to the plate
-#
-# A plate can hold tables of its own, not just its images. Saving the aggregate next to
-# the data means the next person does not have to recompute it.
-
-# %%
-plate.add_table(name=f"{table_name}_all_wells", table=table, overwrite=True)
-plate.list_tables()
-
-# %%
-# read it back as a check
-plate.get_table(f"{table_name}_all_wells").dataframe.head()
-
-# %% [markdown]
-# :::{warning}
-# This writes into the plate. If you are working on a shared read-only copy of the course
-# data it will fail — which is the correct outcome. Point `PLATE_PATH` at a copy of your
-# own before running this section.
-# :::
-
-# %% [markdown]
-# ## Creating a plate from scratch
-#
-# For completeness, and because you will need it if you ever assemble a dataset yourself.
-
-# %%
-from ngio import ImageInWellPath, create_empty_plate
-
-layout = [
-    ImageInWellPath(row="A", column="01", path="0"),
-    ImageInWellPath(row="A", column="02", path="0"),
-    ImageInWellPath(row="A", column="02", path="1", acquisition_id=1),
-]
-# new_plate = create_empty_plate(store="./my_plate.zarr", name="Demo",
-#                                images=layout, overwrite=True)
-# print(new_plate.rows, new_plate.columns)
-[f"{i.row}/{i.column}/{i.path}" for i in layout]
-
-# %% [markdown]
-# The order you list images in does not matter — rows and columns come back sorted. Note
-# that `create_empty_plate` writes *metadata* only: the wells exist, the pixels do not
-# yet.
-#
-# :::{note}
-# `add_image` and `remove_image` are **not** safe under multiprocessing. Use
-# `atomic_add_image` / `atomic_remove_image` if several processes write to one plate;
-# they take an OS file lock, which needs a local store and works reliably on Linux and
-# macOS.
-# :::
 
 # %% [markdown]
 # ---

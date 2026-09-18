@@ -23,8 +23,8 @@
 # - work in **micrometres** instead of pixels
 # - load a segmentation and crop to a region of interest
 #
-# `ez-zarr` was for looking. **`ngio`** is for working: it reads and writes, it
-# understands labels and tables, and it knows about plates. This chapter covers one
+# `ez-zarr` was for looking. **`ngio`** is for working: it understands labels and tables,
+# and it knows about plates. This chapter covers one
 # image; [chapter 3.2](02_plates_wells.ipynb) scales it to 384 wells.
 #
 # The material follows the official

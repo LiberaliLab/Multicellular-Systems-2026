@@ -3,7 +3,7 @@
 `ngio` is the fuller library, and the one you will spend most of Part 1 in.
 
 Where `ez-zarr` shows you an image, `ngio` lets you **work** with the whole screen. It
-understands wells and acquisitions, reads and writes segmentation labels, handles all four
+understands wells and acquisitions, reads segmentation labels, handles all four
 kinds of table, and works in physical units so you never carry a pixel-to-micrometre
 conversion around by hand.
 

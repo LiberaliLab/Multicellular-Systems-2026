@@ -10,14 +10,16 @@ and it has one goal:
 
 ```{important}
 This part runs on **your own laptop**, not on Euler. Napari needs OpenGL 3.2+, and
-forwarding graphics from a cluster caps OpenGL at 1.4 — it cannot work. See
-[Napari setup](../setup/napari_local.md).
+forwarding graphics from a cluster caps OpenGL at 1.4 — it cannot work.
+[Chapter 00](00_setup.md) is the install, and it is not part of the Euler setup you did
+before the course.
 ```
 
 ## Chapters
 
 | | |
 |---|---|
+| [00](00_setup.md) | **Install it first** — a separate environment, on your laptop |
 | [01](01_napari_tour.md) | The viewer: layers, contrast, channels, scale bars |
 | [02](02_omezarr_in_napari.md) | Opening an OME-Zarr: pyramids, channels, label overlays |
 | [ex](exercises.md) | Exercises |

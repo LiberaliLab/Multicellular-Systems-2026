@@ -13,7 +13,6 @@ parts:
           - file: setup/euler_jupyterhub
           - file: setup/python_environment
           - file: setup/data
-          - file: setup/napari_local
 
   - chapters:
       - file: part1_omezarr/intro
@@ -79,6 +78,7 @@ parts:
     chapters:
       - file: part2_napari/intro
         sections:
+          - file: part2_napari/00_setup
           - file: part2_napari/01_napari_tour
           - file: part2_napari/02_omezarr_in_napari
           - file: part2_napari/exercises

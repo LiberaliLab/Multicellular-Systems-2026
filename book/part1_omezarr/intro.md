@@ -10,8 +10,8 @@ You will use two libraries, and the order is deliberate:
 **`ez-zarr`** is small and immediate. Point it at a plate, get a picture. It is the right
 tool for *looking*, and you will reach for it constantly.
 
-**`ngio`** is the fuller library. It knows about wells and acquisitions, reads and writes
-labels and tables, and can pull one table out of all 384 wells in a single call. That
+**`ngio`** is the fuller library. It knows about wells and acquisitions, reads labels and
+tables, and can pull one table out of all 384 wells in a single call. That
 last capability is how the Part 3 dataset was built.
 
 ## Three sections

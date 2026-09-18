@@ -3,7 +3,7 @@
 You can read an OME-Zarr with `ez-zarr` and `ngio`. Now open one in the viewer.
 
 ```{important}
-Laptop, not Euler — see [Napari setup](../setup/napari_local.md). You will need a copy of
+Laptop, not Euler — see [Napari setup](00_setup.md). You will need a copy of
 one well or a small plate locally; your instructor gives you the path in the first
 session.
 ```
