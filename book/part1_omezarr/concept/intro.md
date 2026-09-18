@@ -10,5 +10,7 @@ their behaviour makes far more sense once you have seen the raw thing.
 ```{tableofcontents}
 ```
 
-One chapter, and it uses no imaging library at all — just `pathlib` and `json`. By the end
-you will be able to open a plate in a file browser and say what every directory is for.
+One chapter, and it is the only one in the course you do not run. It is a page to read:
+the code in it is shown so you can see how each thing is read, not so you can execute it.
+By the end you will be able to open a plate in a file browser and say what every directory
+is for.

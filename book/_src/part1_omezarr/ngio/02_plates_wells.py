@@ -45,7 +45,9 @@ from ngio import open_ome_zarr_plate, open_ome_zarr_well
 
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 from mcs2026 import plotting
-from mcs2026.config import PLATE_PATH
+
+# The plate lives here on Euler. Change this line if your copy is elsewhere.
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")
 
 plotting.set_style()
 

@@ -33,7 +33,6 @@
 # [cheat sheet](../cheatsheet.md).
 
 # %%
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -41,8 +40,8 @@ import numpy as np
 
 import ngio
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-from mcs2026.config import PLATE_PATH
+# The plate lives here on Euler. Change this line if your copy is elsewhere.
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")
 
 image_path = PLATE_PATH / "B" / "03" / "0"
 print("ngio", ngio.__version__)

@@ -52,7 +52,12 @@ import scanpy as sc
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 
 from mcs2026 import decode, layout, panels, plotting
-from mcs2026.config import H5AD_FULL, H5AD_SLIM, LAYOUT_XLSX
+
+# The tables live here on Euler. Change these lines if your copy is elsewhere.
+DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+H5AD_FULL = DATA / "1_FE_pooled1.h5ad"
+H5AD_SLIM = DATA / "mcs2026_slim.h5ad"
+LAYOUT_XLSX = Path.cwd().parents[2] / "metadata" / "L_ayout_384_Haralick_Thresholds.xlsx"   # in the repo, not on the cluster
 
 plotting.set_style()
 pd.set_option("display.width", 140)

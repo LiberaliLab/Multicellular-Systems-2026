@@ -7,7 +7,8 @@ Do these four things, in this order, **before the first session**.
 2. **[The Python environment](python_environment.md)** — one virtual environment, one
    kernel, used by Parts 1 and 3.
 3. **[The data](data.md)** — point the notebooks at the plate and the feature table.
-4. **[Napari](napari_local.md)** — a *separate* install on your own laptop, for Part 2.
+4. **[Napari](napari_local.md)** — a *separate* install on your own laptop, for the
+   optional napari part. Skip it unless you want that part.
 
 ```{warning}
 Steps 2 and 4 are deliberately separate environments, and step 4 is deliberately not on

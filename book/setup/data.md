@@ -1,9 +1,32 @@
 # The data
 
-Nothing is downloaded. Both datasets already sit on Euler in a read-only directory, and
-you point the notebooks at them.
+Nothing is downloaded. Both datasets already sit on Euler, and every chapter states the
+path to them in its own first cell — there is no config file and no environment variable.
+What you read at the top of a notebook is exactly what it opens.
 
-## What there is
+## Where it is
+
+```text
+/cluster/project/mcsliberali/
+├── zarr_files/
+│   └── dummy.zarr            <- the OME-Zarr plate, Part 1
+└── data_mcs_2026/
+    ├── 1_FE_pooled1.h5ad     <- the raw feature table, 13 GB
+    ├── mcs2026_slim.h5ad     <- and the objects Stage 1 builds from it
+    └── ...
+```
+
+So the two lines you will meet are:
+
+```python
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")   # Part 1
+DATA       = Path("/cluster/project/mcsliberali/data_mcs_2026")           # Part 3
+```
+
+If your copy of the data is somewhere else, change that one line in the chapter you are
+working on. Nothing else reads it.
+
+## Overview
 
 **A high-content screening plate**, in OME-Zarr — used in Parts 1 and 2.
 
@@ -20,47 +43,12 @@ of HNES1 human naive embryonic stem cells, 4i multiplexed immunofluorescence:
 | Imaging rounds | 18 |
 | Size in memory | **13.1 GB** as dense float32 |
 
-**The plate layout workbook** is small enough to live in the repository, at
-`metadata/L_ayout_384_Haralick_Thresholds.xlsx`. You already have it. It is the only
-place that records which antibody was in which channel in which round, which makes it
-the decoder for the entire feature table.
-
-## Point the notebooks at it
-
-Copy the example config and edit one line:
-
-```bash
-cp src/mcs2026/config.example.py src/mcs2026/config.py
-```
-
-Open `src/mcs2026/config.py` and set `DATA_ROOT` to the path you were given in the first
-session:
-
-```python
-DATA_ROOT = Path("/cluster/work/.../mcs2026")   # <- the path from the first session
-```
-
-That is the only path you ever have to set. `config.py` is listed in `.gitignore`, so
-your local paths never end up in a commit — which is the point: a repository full of
-other people's absolute paths is a repository nobody else can run.
-
-```{note}
-`config.example.py` **is** committed and `config.py` is **not**. If you clone the repo
-fresh, you will not have a `config.py` until you make one.
-```
-
-## Check it worked
-
-In a notebook running the **Python (MCS 2026)** kernel:
-
-```python
-from mcs2026.config import DATA_ROOT, H5AD_FULL, PLATE_PATH
-print(DATA_ROOT.exists(), PLATE_PATH.exists(), H5AD_FULL.exists())
-```
-
-Three `True`s and you are ready.
 
 ## Do not copy the data
 
 The feature table is 13 GB and your `$HOME` quota is around 16 GB. Read it where it is.
 Part 3 chapter 01 writes a much smaller version, and *that* one you keep.
+
+Chapters 01 to 04 of Part 3 have already been run for you, and their outputs are in
+`data_mcs_2026` alongside the raw table. You read those chapters to understand what they
+did; you do not have to run them.

@@ -11,7 +11,7 @@ session.
 ## Opening it
 
 An OME-Zarr is a **directory**, not a file — this is the thing from
-[Part 1 chapter 01](../part1_omezarr/concept/01_what_is_omezarr.ipynb) that trips people up here.
+[Part 1 chapter 01](../part1_omezarr/concept/01_what_is_omezarr.md) that trips people up here.
 
 1. Drag the `.zarr` **folder** onto the napari window.
 2. Napari asks which reader to use. Choose **napari-ome-zarr**.

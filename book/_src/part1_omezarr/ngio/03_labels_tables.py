@@ -29,7 +29,6 @@
 # comes from.
 
 # %%
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -38,8 +37,8 @@ import pandas as pd
 
 import ngio
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-from mcs2026.config import PLATE_PATH
+# The plate lives here on Euler. Change this line if your copy is elsewhere.
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")
 
 container = ngio.open_ome_zarr_container(PLATE_PATH / "B" / "03" / "0")
 image = container.get_image()
@@ -257,7 +256,7 @@ for ax in axes:
 # %% [markdown]
 # :::{warning}
 # Writing requires the store to be writable. On the shared course data this will fail —
-# correctly. Point `PLATE_PATH` at your own copy first, or read the cells below without
+# correctly. Point `PLATE_PATH` at a copy you own first, or read the cells below without
 # running them.
 # :::
 
@@ -375,7 +374,9 @@ my_features
 # That is Part 1. You can now open an OME-Zarr, navigate a plate, read and write labels
 # and tables, and aggregate measurements across a screen.
 #
-# **Next:** [Part 2 — Napari](../../part2_napari/intro.md), to look at the same data with
-# your own eyes. Or jump to
-# [Part 3](../../part3_analysis/intro.md), which starts from a table built exactly the way
-# [chapter 3.2](02_plates_wells.ipynb) built one.
+# **Next:** [Part 2 — From images to numbers](../../part2_features/intro.md). No code: ten
+# minutes on what a feature actually is, which is what
+# [Part 3](../../part3_analysis/intro.md) then spends five chapters taking apart.
+#
+# If you would rather look at the data with your own eyes first, the optional
+# [napari part](../../part2_napari/intro.md) is there whenever you want it.

@@ -21,13 +21,13 @@ Read a high-content screen the way the field actually stores it, with
 Runs on **Euler**
 :::
 
-:::{grid-item-card} Part 2 — Napari
-:link: part2_napari/intro
+:::{grid-item-card} Part 2 — From images to numbers
+:link: part2_features/intro
 :link-type: doc
-Look at the same data with your own eyes: channels, pyramid levels and
-segmentation overlays in an interactive viewer.
+How a picture becomes a table: segmentation, then intensity, shape, texture and
+neighbourhood. No code — ten minutes, and every column in Part 3 stops being a mystery.
 +++
-Runs on **your laptop**
+**No code**
 :::
 
 :::{grid-item-card} Part 3 — Analysis
@@ -52,6 +52,20 @@ embeddings, trajectories and proportions — then one chapter per theme. Read it
 own attempt, not before.
 +++
 Released **after the group work**
+:::
+::::
+
+::::{grid} 1 1 1 1
+:gutter: 3
+
+:::{grid-item-card} Optional — Napari
+:link: part2_napari/intro
+:link-type: doc
+Look at the same data with your own eyes: channels, pyramid levels and segmentation
+overlays in an interactive viewer. Not assessed, and not needed by anything else — do it
+whenever you like.
++++
+Runs on **your laptop**
 :::
 ::::
 

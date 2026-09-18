@@ -1,7 +1,7 @@
 # Course schedule
 
 Each session is a hands-on block. Bring a laptop; Parts 1 and 3 run on Euler through
-your browser, Part 2 runs locally.
+your browser. The optional napari part runs locally.
 
 | Day | Topic | Notebooks | Where |
 |---|---|---|---|
@@ -9,7 +9,8 @@ your browser, Part 2 runs locally.
 | 02.10 | **What OME-Zarr is** and reading it with `ez-zarr` | Part 1 · 1–2 | Euler |
 | 02.10 | **`ngio`**: containers, images, labels | Part 1 · 3.1 | Euler |
 | 02.10 | **Plates and wells**: from 384 wells to one table | Part 1 · 3.2–3.3 | Euler |
-| Extra | **Napari**: looking at the data | Part 2 · 01–02 | Laptop |
+| 02.10 | **From images to numbers**: what a feature is | Part 2 (no code) | — |
+| Extra | **Napari**: looking at the data | Optional · 01–02 | Laptop |
 | 16.10 & 23.10 | **The experiment**: plate layout and the staining decoder | Part 3 · 00–01 | Euler |
 | 6.11 | **Quality control and normalisation** | Part 3 · 02 | Euler |
 | 6.11 & 13.11 | **Signaling** and **cell mechanics** | Part 3 · 03–04 | Euler |

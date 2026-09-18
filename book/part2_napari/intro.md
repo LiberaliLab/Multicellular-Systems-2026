@@ -1,10 +1,11 @@
-# Part 2 — Napari
+# Napari
 
 Everything so far produced numbers and static plots. Sometimes you just need to *look* at
 the data: scrub through channels, turn a segmentation on and off, zoom into one cell and
 decide whether the mask is right.
 
-**Napari** is an image viewer for exactly that. This part is short and has one goal:
+**Napari** is an image viewer for exactly that. This part is **optional**, it is short,
+and it has one goal:
 **be able to open an OME-Zarr and look at it comfortably.**
 
 ```{important}
