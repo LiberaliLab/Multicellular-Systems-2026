@@ -42,7 +42,10 @@ import scanpy as sc
 sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
 
 from mcs2026 import analysis, plotting
-from mcs2026.config import H5AD_SLIM
+
+# The tables live here on Euler. Change these lines if your copy is elsewhere.
+DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+H5AD_SLIM = DATA / "mcs2026_slim.h5ad"
 
 plotting.set_style()
 pd.set_option("display.width", 140)

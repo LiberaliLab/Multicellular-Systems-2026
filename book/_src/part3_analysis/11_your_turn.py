@@ -38,7 +38,6 @@
 # :::
 
 # %%
-import os
 from math import comb
 from pathlib import Path
 
@@ -56,8 +55,8 @@ plt.rcParams.update({          # the house style, no package needed
 })
 pd.set_option("display.width", 140)
 
-# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
-DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+# The tables live here on Euler. Change this line if your copy is elsewhere.
+DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
 THEME = "cell_cycle"          # <- signaling / mechanics / metabolism / organelles
 

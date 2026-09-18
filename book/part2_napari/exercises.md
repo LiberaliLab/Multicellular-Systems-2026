@@ -77,6 +77,6 @@ Zoomed out you are looking at a coarse pyramid level — a few hundred kilobytes
 you are looking at full resolution, but only for the chunks on screen.
 
 At no point was the whole array read. That is the same mechanism you measured by hand in
-[Part 1 chapter 01](../part1_omezarr/concept/01_what_is_omezarr.ipynb), now visible as the reason
+[Part 1 chapter 01](../part1_omezarr/concept/01_what_is_omezarr.md), now visible as the reason
 a 100 GB plate opens instantly.
 ```

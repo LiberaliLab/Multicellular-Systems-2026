@@ -41,7 +41,6 @@
 # :::
 
 # %%
-import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -58,8 +57,8 @@ plt.rcParams.update({          # the house style, no package needed
 })
 pd.set_option("display.width", 140)
 
-# The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
-DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
+# The tables live here on Euler. Change this line if your copy is elsewhere.
+DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 names = cells.var_names.tolist()

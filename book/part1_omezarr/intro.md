@@ -22,7 +22,7 @@ What the format is, before any library hides it.
 
 | | |
 |---|---|
-| [1](concept/01_what_is_omezarr.ipynb) | What OME-Zarr actually is — on disk, by hand |
+| [1](concept/01_what_is_omezarr.md) | What OME-Zarr actually is — on disk. **Read only, nothing to run** |
 
 ### [Looking with ez-zarr](ezzarr/intro.md)
 
@@ -45,6 +45,6 @@ The fuller library — and the one that built the Part 3 dataset.
 And a [cheat sheet](cheatsheet.md) covering both libraries.
 
 ```{note}
-Runs on Euler, in the **Python (MCS 2026)** kernel. Set `DATA_ROOT` in
-`src/mcs2026/config.py` first — see [The data](../setup/data.md).
+Runs on Euler, in the **Python (MCS 2026)** kernel. Each chapter states the path to the
+data at the top — see [The data](../setup/data.md).
 ```

@@ -28,7 +28,6 @@
 
 # %%
 # Loading the necessary packages
-import sys
 from pathlib import Path
 
 import numpy                                        # array operations
@@ -36,13 +35,13 @@ import matplotlib.pyplot as plt                     # for finer-grained plotting
 
 from ez_zarr import ome_zarr, plotting, utils       # simple interaction with zarr files
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-from mcs2026.config import PLATE_PATH
+# The plate lives here on Euler. Change this line if your copy is elsewhere.
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")
 
 # %% [markdown]
 # ## Paths
 #
-# `PLATE_PATH` comes from your `config.py` — see [The data](../../setup/data.md). Everything
+# `PLATE_PATH` is the line you set at the top of this chapter — see [The data](../../setup/data.md). Everything
 # else is built from it, so this is the only line you would change to point at a
 # different plate.
 
