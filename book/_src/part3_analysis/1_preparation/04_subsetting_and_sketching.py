@@ -63,7 +63,7 @@ plt.rcParams.update({          # the house style, no package needed
 pd.set_option("display.width", 140)
 
 # The one path to set. Point MCS2026_DATA at the folder holding the tables, or edit this.
-DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/scratch/maaraujo/data_mcs_2026"))
+DATA = Path(os.environ.get("MCS2026_DATA", "/cluster/work/liberali/COURSE/mcs2026/tables"))
 
 cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers "

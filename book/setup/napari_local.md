@@ -1,6 +1,7 @@
 # Napari (on your laptop)
 
-Part 2 runs on **your own machine**, not on Euler. This is the one place the course
+The optional [napari part](../part2_napari/intro.md) runs on **your own machine**, not on
+Euler. This is the one place the course
 leaves the cluster, and the reason is worth understanding rather than just working
 around.
 
@@ -11,7 +12,7 @@ from a cluster over SSH (X11 forwarding), indirect rendering caps OpenGL at **1.
 The versions are not close, and no amount of configuration bridges them: napari starts,
 fails to create a canvas, and exits.
 
-So: Parts 1 and 3 on Euler, Part 2 on your laptop, deliberately.
+So: the taught parts on Euler, napari on your laptop, deliberately.
 
 ## Install
 
@@ -73,4 +74,4 @@ You may come across **`napari-ome-zarr-navigator`**, a nice plugin for browsing 
 plates. It pins `ngio<0.6`, and this course uses `ngio` 1.1.0. Installing it into either
 of your environments will downgrade `ngio` and break Parts 1 and 3.
 
-If you want it, give it a third environment of its own. Nothing in Part 2 needs it.
+If you want it, give it a third environment of its own. Nothing in the napari part needs it.

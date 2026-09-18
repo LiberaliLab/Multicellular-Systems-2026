@@ -1,4 +1,4 @@
-# Part 2 · Exercises
+# Napari · Exercises
 
 Do these on your laptop with one well open.
 
@@ -61,8 +61,8 @@ Being able to go from a number to a picture and back, quickly, is the single mos
 habit in image analysis. An outlier is not a data point — it is a cell, and you can look
 at it.
 
-Most segmentation problems are found this way rather than by any automatic metric, which
-is why Part 2 sits between the two computational parts rather than at the end.
+Most segmentation problems are found this way rather than by any automatic metric. That is
+worth an afternoon whenever in the course you get to it.
 ```
 
 ## 4. See the pyramid

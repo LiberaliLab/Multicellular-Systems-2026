@@ -31,11 +31,10 @@ parts:
               - file: part1_omezarr/ngio/03_labels_tables
           - file: part1_omezarr/cheatsheet
 
-      - file: part2_napari/intro
+      - file: part2_features/intro
         sections:
-          - file: part2_napari/01_napari_tour
-          - file: part2_napari/02_omezarr_in_napari
-          - file: part2_napari/exercises
+          - file: part2_features/01_what_is_measured
+          - file: part2_features/02_how_and_with_what
 
       - file: part3_analysis/intro
         sections:
@@ -72,6 +71,17 @@ parts:
           - file: part4_final_solutions/03_metabolism
           - file: part4_final_solutions/04_organelles
           - file: part4_final_solutions/05_integration
+
+  # Napari is optional and runs on a laptop rather than Euler, so it sits at the end
+  # rather than interrupting the two computational parts. The folder is still named
+  # part2_napari; renaming it would churn every link for no reader-visible gain.
+  - caption: Optional
+    chapters:
+      - file: part2_napari/intro
+        sections:
+          - file: part2_napari/01_napari_tour
+          - file: part2_napari/02_omezarr_in_napari
+          - file: part2_napari/exercises
 
   - caption: Independent work
     chapters:

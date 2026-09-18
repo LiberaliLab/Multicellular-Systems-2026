@@ -15,14 +15,12 @@
 # %% [markdown]
 # # 05 · The AnnData object
 #
-# Stage 1 built seven files and this stage opens one of them. Ten minutes spent on **what is
-# actually in it** saves an afternoon later, because almost every confusing error in
-# single-cell analysis is really a question about which slot something lives in.
+# Stage 1 built seven files and this stage opens one of them.
 #
 # | | |
 # |---|---|
 # | **1** | Open it, and print the slots |
-# | **2** | The seven slots, and what each is for |
+# | **2** | The eight slots, and what each is for |
 # | **3** | Indexing: names, masks, and the view |
 # | **4** | The `obs` column type that changes your answers |
 # | **5** | Which file to open for which question |
@@ -59,17 +57,7 @@ cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
 cells
 
 # %% [markdown]
-# That repr is the whole map. Read it as: a matrix of `n_obs × n_vars`, and then five
-# tables and dictionaries hanging off its two axes.
-#
-# The one thing it does not print is what was *done* to the file. Stage 1 wrote that down:
-
-# %%
-for key, value in cells.uns["provenance"].items():
-    print(f"  {key:18s} {value}")
-
-# %% [markdown]
-# ## 2 · The seven slots, and what each is for
+# ## 2 · The eight slots, and what each is for
 #
 # ```{image} ../../images/clean_object_light.svg
 # :class: only-light
@@ -87,6 +75,7 @@ for key, value in cells.uns["provenance"].items():
 # | `var` | `n_vars` rows | what you know about each **marker** |
 # | `layers` | `n_obs × n_vars` | alternative versions of `X` — same shape, different numbers |
 # | `obsm` | `n_obs × anything` | per-cell matrices: embeddings, PCA coordinates |
+# | `varm` | `n_vars × anything` | per-**marker** matrices: PCA loadings |
 # | `obsp` | `n_obs × n_obs` | per-cell-pair matrices: neighbour graphs, sparse |
 # | `uns` | anything | everything else — parameters, colours, provenance |
 #
@@ -117,44 +106,7 @@ cells.var.head(3)
 # number per *pair* of cells.
 #
 # Chapters 06 to 09 are what fill them, one slot each. Whether they are filled *now* depends
-# on how far through the course this file has been:
-
-# %%
-print(f"  obsm: {list(cells.obsm)}")
-print(f"  obsp: {list(cells.obsp)}")
-
-# %% [markdown]
-# To see the shapes either way, put something there yourself. Take a slice of
-# `mcs2026_intensity.h5ad` — which never carries an embedding, because nothing is ever computed
-# on it — and run chapters 06 and 07 in two lines. Small enough to be instant, and thrown
-# away afterwards.
-
-# %%
-demo = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")[:2_000].copy()
-sc.pp.pca(demo, n_comps=10, random_state=0)
-sc.pp.neighbors(demo, n_neighbors=15, n_pcs=10, random_state=0)
-
-for key, value in demo.obsm.items():
-    print(f"  obsm[{key!r:14}] {value.shape}   {value.nbytes / 1e6:6.2f} MB dense")
-for key, value in demo.obsp.items():
-    filled = 100 * value.nnz / value.shape[0] ** 2
-    print(f"  obsp[{key!r:14}] {value.shape}   {filled:.2f}% filled, "
-          f"{value.data.nbytes / 1e6:.2f} MB sparse "
-          f"(vs {value.shape[0]**2 * 8 / 1e6:,.0f} MB dense)")
-del demo
-
-# %% [markdown]
-# :::{important}
-# **`obsp` is the slot that decides how many cells you can work with.** It is `n_obs²`, so
-# the cost is quadratic: 2,000 cells is 4 million potential entries, 30,000 is 900 million,
-# and the full ~653,000-cell table is 4 × 10¹¹ — about 3.4 terabytes if it were dense.
-#
-# Sparsity is what makes it possible at all — only the 15 nearest neighbours of each cell
-# are stored, so the real cost is linear in cells. But every graph algorithm downstream
-# walks that structure, and the constant is large enough that
-# [chapter 04](../1_preparation/04_subsetting_and_sketching.ipynb) cut the data down before
-# any of this happens — to the controls for this stage, and to a sketch for Part 4.
-# :::
+# on how far through the course this file has been.
 
 # %% [markdown]
 # ## 3 · Indexing: names, masks, and the view
@@ -188,9 +140,10 @@ print(f"  copy  is_view={copy.is_view}   {copy.n_obs * copy.n_vars * 4 / 1e6:.1f
 # :::
 
 # %%
-# to_memory / .copy() gives you an object you own
 subset = cells[cells.obs.timepoint_h.astype(int) >= 60].copy()
+
 subset.obs["late"] = True
+
 print(f"  {subset.n_obs:,} cells, and now an extra obs column: {'late' in subset.obs}")
 
 # %% [markdown]
@@ -289,71 +242,30 @@ pd.DataFrame([
 # print(cells.obs.dtypes)            # what will need casting
 # ```
 #
+
+# %% [markdown]
 # ---
 #
-# ## Exercises
+# ## Summary
 #
-# ### 1. Get back to the raw numbers
+# | slot | holds |
+# |---|---|
+# | `X` / `layers` | the same cells and the same markers, different numbers |
+# | `obs` / `var` | ordinary DataFrames, locked to the row and column axes |
+# | `obsm` / `obsp` | per-cell matrices, and per-cell-**pair** matrices |
+# | `varm` | per-marker matrices — PCA loadings live here, not in `var` |
+# | `uns` | everything that fits nowhere else, including `provenance` |
 #
-# `X` is normalised. Reconstruct the raw mean intensity of Oct4 for the DMSO cells at 36 h
-# from `layers["raw"]`, and check it against `X` — what is the relationship between them?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
+# Three habits that prevent most of the confusing errors:
 #
-# ```python
-# mask = (cells.obs.condition == "DMSO") & (cells.obs.timepoint_h.astype(int) == 36)
-# block = cells[mask, "Oct4"]
-# raw = np.log2(np.asarray(block.layers["raw"]).ravel() + 1)
-# print("raw log2 :", raw.mean().round(3), raw.std(ddof=1).round(3))
-# print("X        :", np.asarray(block.X).mean().round(3), np.asarray(block.X).std(ddof=1).round(3))
-# ```
+# - **Read from views freely; call `.copy()` the moment you intend to write.**
+# - **Pass `observed=True` to every `groupby` on a categorical**, or conditions that are not
+#   in the subset come back as zeros that read like a result.
+# - **Cast `timepoint_h` with `.astype(int)` before any arithmetic** — it is an *ordered*
+#   categorical, which is right for plotting and wrong for subtraction.
 #
-# The `X` values come out at 0 and 1 by construction — these *are* the control cells that
-# Step 17 centred and scaled on. Any other condition at 36 h is measured against this one.
-# :::
-
-# %% [markdown]
-# ### 2. Find something the repr does not tell you
 #
-# How many wells are in this file, how many conditions, and how many cells per well? How
-# would you have found that out from the repr alone?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
 #
-# ```python
-# print(cells.obs.well.nunique(), "wells;", cells.obs.condition.nunique(), "conditions")
-# print(cells.obs.groupby("well", observed=True).size().describe())
-# print(cells.uns["subset_reason"])
-# ```
-#
-# You could not have. The repr lists the *names* of the columns, never their contents — and
-# a file that lost half its wells looks exactly like one that did not. This is why the
-# opening cell prints `obs` summaries and `uns`, not just the object.
-# :::
-
-# %% [markdown]
-# ### 3. Break a categorical on purpose
-#
-# Subset to two conditions, then plot the mean of any marker per condition without passing
-# `observed=True`. What does the figure show, and what would you have concluded from it?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# two = cells[cells.obs.condition == "DMSO"]
-# print(two.obs.groupby("condition", observed=False).size().head(8))
-# ```
-#
-# Sixteen categories, fourteen of them empty. In a bar chart that is fourteen bars of height
-# zero, which reads as "these conditions had no effect" rather than "these conditions are
-# not in this subset". The two failures look identical on the page and are opposites.
-# :::
 
 # %% [markdown]
 # ---

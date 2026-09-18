@@ -4,17 +4,16 @@
 two reasons: the data is far too large to sit on your laptop, and Part 3 needs more
 memory than a laptop has.
 
-You will not need to write a single SLURM script. Everything happens in JupyterLab, in
-your browser — Euler just provides the machine underneath.
-
 ## 1. Get an account
 
 Every ETH member with a nethz account can use Euler, but the account has to be activated
-once. Follow the ETH Scientific Computing instructions at
-<https://scicomp.ethz.ch/wiki/Getting_started_with_clusters>.
+once. To do this follow to the next steps.
 
 If you are not at ETH, or your account is not active by the first session, tell us
 early — this is the one step we cannot fix in the room.
+
+Some extra information can be found at the ETH Scientific Computing instructions at
+<https://scicomp.ethz.ch/wiki/Getting_started_with_clusters>.
 
 ## 2. Log in from a terminal
 
@@ -56,8 +55,8 @@ cluster, and asking for too little will make Part 3 die halfway through.
 
 | Setting | Parts 1 & 2 | **Part 3** |
 |---|---|---|
-| Number of cores | 4 | 4 |
-| Memory **per core** | 4 GB | **8 GB** |
+| Number of cores | 16 | 16 |
+| Memory **per core** | 20 GB | **20 GB** |
 | Runtime | 4 h | 4 h |
 | GPUs | none | none |
 
@@ -89,43 +88,3 @@ queue — 4 × 8 GB usually starts in a minute or two.
 Asking for more than you need is not free: the larger the request, the longer you wait
 in the queue. 4 × 16 GB usually starts within a minute or two.
 
-## 4. Tell JupyterHub about your environment
-
-JupyterHub starts with a bare shell. To make it load the same software stack you built
-your environment against, create one config file:
-
-```bash
-mkdir -p ~/.config/euler/jupyterhub
-```
-
-Then put this in `~/.config/euler/jupyterhub/jupyterlabrc`:
-
-```bash
-module purge
-module load stack/2024-05 gcc/13.2.0 python/3.11.6_cuda eth_proxy
-```
-
-There is a ready-made copy in the repository:
-
-```bash
-cp environment/jupyterlabrc.example ~/.config/euler/jupyterhub/jupyterlabrc
-```
-
-```{warning}
-This `module load` line must be **identical** to the one you use in
-[the next step](python_environment.md) to build the virtual environment. A kernel built
-against Python 3.11.6 cannot run inside a session that loaded Python 3.12 — you get an
-environment that looks fine and fails on the first `import`.
-```
-
-## When the server will not start
-
-JupyterHub is quiet about failures, but it does write them down. On a login node:
-
-```bash
-ls -lt ~/jupyterhub-logs/ | head
-cat ~/jupyterhub-logs/$(ls -t ~/jupyterhub-logs/ | head -1)
-```
-
-A typo in `jupyterlabrc` — a misspelled module name, a stray character — is the usual
-cause, and the log says so directly.
