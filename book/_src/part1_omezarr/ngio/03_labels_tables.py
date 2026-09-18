@@ -21,7 +21,7 @@
 # - jump straight to one segmented object with a **masking ROI table**
 # - read a **feature table** — the thing `ez-zarr` could not
 # - get the same table as pandas, polars or AnnData
-# - segment something, write the label back, and build its ROI and feature tables
+# - segment something yourself, and measure what you segmented
 #
 # Tables are not part of the core OME-Zarr specification. They follow
 # [ngio's table specification](https://biovisioncenter.github.io/ngio/stable/table_specs/overview/),
@@ -224,10 +224,10 @@ whole_image = container.build_image_roi_table("whole_image")
 whole_image.rois()[0]
 
 # %% [markdown]
-# ### Segment, then write it back
+# ### Segment, and measure what you segmented
 #
-# The full round trip: read pixels, segment, `derive_label`, `set_array`, `consolidate`,
-# then build the ROI and feature tables for what you made.
+# Read the pixels, threshold them into objects, then measure those objects — the two steps
+# [Part 2](../../part2_features/intro.md) describes, in about five lines.
 
 # %%
 from scipy import ndimage
@@ -253,26 +253,6 @@ axes[1].set_title(f"{n_objects} objects")
 for ax in axes:
     ax.axis("off")
 
-# %% [markdown]
-# :::{warning}
-# Writing requires the store to be writable. On the shared course data this will fail —
-# correctly. Point `PLATE_PATH` at a copy you own first, or read the cells below without
-# running them.
-# :::
-
-# %%
-# new_label = container.derive_label("my_segmentation", ref_image=small, overwrite=True)
-# new_label.set_array(segmentation.astype(np.uint16), axes_order=["y", "x"])
-# new_label.consolidate()          # rebuild the coarser pyramid levels
-#
-# roi_table = container.build_masking_roi_table("my_segmentation")
-# container.add_table("my_segmentation_ROI_table", roi_table, backend="csv", overwrite=True)
-print("derive_label -> set_array -> consolidate -> build_masking_roi_table -> add_table")
-
-# %% [markdown]
-# `consolidate()` is not automatic. Write level 0 and skip it, and the coarser levels
-# still hold the old data — the image looks right zoomed in and wrong zoomed out.
-
 # %%
 from ngio.tables import FeatureTable
 
@@ -284,13 +264,7 @@ measurements.head()
 
 # %%
 my_features = FeatureTable(measurements, reference_label="my_segmentation")
-# container.add_table("my_features", my_features, backend="parquet", overwrite=True)
 my_features
-
-# %% [markdown]
-# The `backend` argument decides the on-disk format — `anndata` (the default), `parquet`,
-# `csv` or `json`. It does not change how you read the table back: `.dataframe`,
-# `.lazy_frame` and `.anndata` all work whatever you chose.
 
 # %% [markdown]
 # ---
@@ -325,26 +299,7 @@ my_features
 # :::
 
 # %% [markdown]
-# ### 2. Does the backend change anything?
-#
-# Write the same feature table with `backend="csv"` and `backend="parquet"`. Compare the
-# file sizes on disk, and check that `.dataframe` returns the same thing either way.
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# Parquet is typically several times smaller than CSV and much faster to read, because it
-# is columnar and typed. CSV is readable in a text editor and by anything, which is
-# occasionally worth more than speed.
-#
-# The point is that `.dataframe` is identical either way: the backend is a storage
-# decision, not an API decision, so you can change your mind later without touching the
-# analysis code.
-# :::
-
-# %% [markdown]
-# ### 3. Compare your segmentation with the one that shipped
+# ### 2. Compare your segmentation with the one that shipped
 #
 # You segmented at pyramid level 2 with a crude Otsu threshold. The plate already
 # contains a segmentation. How many objects does each find, and how do the area
@@ -371,8 +326,8 @@ my_features
 # %% [markdown]
 # ---
 #
-# That is Part 1. You can now open an OME-Zarr, navigate a plate, read and write labels
-# and tables, and aggregate measurements across a screen.
+# That is Part 1. You can now open an OME-Zarr, navigate a plate, read labels and tables,
+# and aggregate measurements across a screen.
 #
 # **Next:** [Part 2 — From images to numbers](../../part2_features/intro.md). No code: ten
 # minutes on what a feature actually is, which is what

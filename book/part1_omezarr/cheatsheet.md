@@ -65,10 +65,6 @@ patch = image.get_roi_as_numpy(roi, channel_selection="DAPI")
 ```python
 label = container.get_label("nuclei")
 mask  = label.get_as_numpy(axes_order=["y", "x"])
-
-new = container.derive_label("my_segmentation", overwrite=True)
-new.set_array(mask, axes_order=["y", "x"])
-new.consolidate()                                  # rebuild the pyramid
 ```
 
 ### Tables
@@ -84,11 +80,6 @@ feature = container.get_feature_table("nuclei")
 feature.dataframe        # pandas
 feature.lazy_frame       # polars
 feature.anndata          # AnnData -- all three, whatever the backend
-
-from ngio.tables import FeatureTable
-container.add_table("my_features",
-                    FeatureTable(df, reference_label="nuclei"),
-                    backend="parquet", overwrite=True)
 ```
 
 ### Plates and wells
@@ -128,7 +119,6 @@ roi.zoom(1.5)                    # pad it by 50%
 | An OME-Zarr is a **directory** | copy with `rsync -a` or `scp -r`, never a plain `cp file` |
 | `Roi` objects are **frozen** in ngio 1.1.0 | build a new one, do not mutate |
 | ez-zarr cannot read feature tables | use `ngio.get_feature_table` |
-| `consolidate()` is not automatic | call it after `set_array`, or coarse levels go stale |
 
 ## Moving from older ngio
 

@@ -7,7 +7,7 @@ the mask is right.
 **Napari** is a multi-dimensional image viewer for exactly that.
 
 ```{important}
-This chapter runs on **your own laptop**. See [Napari setup](../setup/napari_local.md)
+This chapter runs on **your own laptop**. See [Napari setup](00_setup.md)
 for why, and for the install.
 ```
 
