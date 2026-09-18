@@ -2,11 +2,12 @@
 
 One virtual environment, one Jupyter kernel, used by Part 1 and Part 3.
 
-Do this **once**, in a terminal on Euler ([how to get there](euler_jupyterhub.md)).
+Do this **once**, in a terminal on JupyetHub Euler ([how to get there](euler_jupyterhub.md)).
 
 ## 1. Load the software stack
 
 ```bash
+module purge
 module load stack/2024-05 gcc/13.2.0 python/3.11.6_cuda eth_proxy
 ```
 
@@ -21,14 +22,6 @@ Three of those four matter to you:
 `module load` is not permanent — it lasts for the current shell. You re-run it every
 time you open a new terminal. That is why the same line also goes into
 `jupyterlabrc`.
-```
-
-## 2. Get the course repository
-
-```bash
-cd $HOME
-git clone https://github.com/Maaraujo-nv/Multicellular-Systems-2026.git
-cd Multicellular-Systems-2026
 ```
 
 ## 3. Create the virtual environment
@@ -46,7 +39,7 @@ Your prompt now starts with `(mcs2026)`. That is how you know the environment is
 
 ```bash
 pip install --upgrade pip
-pip install -r environment/requirements.txt
+pip install -r /cluster/project/mcsliberali/environment/requirements.txt
 ```
 
 This takes a few minutes. It installs `ngio` 1.1.0 and `ez-zarr` 0.4.2 — the two OME-Zarr
@@ -66,8 +59,7 @@ The environment exists, but JupyterLab does not know about it yet:
 python -m ipykernel install --user --name mcs2026 --display-name "Python (MCS 2026)"
 ```
 
-Restart your JupyterHub server (**File → Hub Control Panel → Stop My Server**, then start
-it again). **Python (MCS 2026)** now appears in the launcher and in the kernel picker at
+Reload and wait, **Python (MCS 2026)** now appears in the launcher and in the kernel picker at
 the top right of every notebook.
 
 ```{important}
@@ -95,4 +87,12 @@ step 3. Nothing of yours lives inside it:
 
 ```bash
 rm -rf $HOME/venvs/mcs2026
+```
+
+## Extra Info - if you wanna get the course repo
+
+```bash
+cd $HOME
+git clone https://github.com/Maaraujo-nv/Multicellular-Systems-2026.git
+cd Multicellular-Systems-2026
 ```
