@@ -3,7 +3,7 @@
 Course material for the hands-on image-analysis sessions of **Multicellular Systems**
 (ETH Zürich, D-BSSE / Liberali Lab).
 
-**Website: <https://maaraujo-nv.github.io/Multicellular-Systems-2026/>** — start there.
+**Website: <https://liberalilab.github.io/Multicellular-Systems-2026/>** — start there.
 This repository is the source; the site is the readable version.
 
 ## What the course covers
@@ -11,8 +11,9 @@ This repository is the source; the site is the readable version.
 | Part | Topic | Where you run it |
 |------|-------|------------------|
 | **1** | OME-Zarr: reading high-content screening data with `ez-zarr` and `ngio` | Euler |
-| **2** | Viewing OME-Zarr in Napari | **your own laptop** |
+| **2** | From images to numbers: what a feature is, and how it is measured | — (no code) |
 | **3** | Multi-condition single-cell analysis: signaling, cell mechanics, metabolism, organelles | Euler |
+| *optional* | Viewing OME-Zarr in Napari | **your own laptop** |
 
 Part 3 works on a 4i multiplexed immunofluorescence screen of human naive embryonic stem
 cells — one 384-well plate, 18 perturbations × 4 timepoints, ~734,000 cells profiled over
@@ -23,7 +24,7 @@ cells — one 384-well plate, 18 perturbations × 4 timepoints, ~734,000 cells p
 Is your choice if to clone the git repository and have it locally as a guide or if to copy and paste directly from the website.
 
 ```bash
-git clone https://github.com/Maaraujo-nv/Multicellular-Systems-2026.git
+git clone https://github.com/LiberaliLab/Multicellular-Systems-2026.git
 cd Multicellular-Systems-2026
 ```
 
@@ -38,8 +39,10 @@ Then follow **Setup** on the website, in order:
 
 1. **Euler and JupyterHub** — getting an account and a running notebook server
 2. **The Python environment** — modules, virtual environment, and the `mcs2026` kernel
-3. **Napari** — laptop-only, for Part 2
-4. **The data** — where the plate and the feature table live, and how to point at them
+3. **The data** — where the plate and the feature table live
+
+Napari needs a separate, laptop-only install. Its setup page lives with the optional
+napari part rather than in Setup, because nothing else depends on it.
 
 Short version, on Euler:
 
@@ -51,8 +54,16 @@ pip install -r environment/requirements.txt
 python -m ipykernel install --user --name mcs2026 --display-name "Python (MCS 2026)"
 ```
 
-Then copy `src/mcs2026/config.example.py` to `src/mcs2026/config.py` and set `DATA_ROOT`
-to the path you were given. `config.py` is gitignored, so your paths stay yours.
+There is no config file to create. Every chapter states the path to the data in its own
+first cell, so what you read at the top of a notebook is exactly what it opens:
+
+```python
+PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")   # Part 1
+DATA       = Path("/cluster/project/mcsliberali/data_mcs_2026")           # Part 3
+```
+
+If your copy of the data is elsewhere, change that one line in the chapter you are
+working on.
 
 ## Repository layout
 
@@ -73,9 +84,9 @@ Notebooks are authored as [jupytext](https://jupytext.readthedocs.io) `.py` file
 
 ```bash
 ./tools/build_notebooks.sh                      # rebuild all, keeping stored outputs
-./tools/build_notebooks.sh part3_analysis/2_themes/03_signaling   # just one
+./tools/build_notebooks.sh part3_analysis/2_controls/06_pca       # just one
 python tools/execute_notebooks.py book/part3_analysis    # run against real data
-pytest tests/                                   # 19 checks on layout + decoding
+pytest tests/                                   # 56 checks on layout, decoding + helpers
 ```
 
 ### Building the website locally
