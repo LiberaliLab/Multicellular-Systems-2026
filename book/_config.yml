@@ -12,7 +12,7 @@ execute:
   execute_notebooks: off
 
 repository:
-  url: https://github.com/Maaraujo-nv/Multicellular-Systems-2026
+  url: https://github.com/LiberaliLab/Multicellular-Systems-2026
   path_to_book: book
   branch: main
 
@@ -21,7 +21,7 @@ html:
   use_repository_button: true
   use_edit_page_button: false
   home_page_in_navbar: false
-  baseurl: https://maaraujo-nv.github.io/Multicellular-Systems-2026/
+  baseurl: https://liberalilab.github.io/Multicellular-Systems-2026/
 
 parse:
   myst_enable_extensions:

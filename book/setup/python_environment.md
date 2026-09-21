@@ -93,6 +93,6 @@ rm -rf $HOME/venvs/mcs2026
 
 ```bash
 cd $HOME
-git clone https://github.com/Maaraujo-nv/Multicellular-Systems-2026.git
+git clone https://github.com/LiberaliLab/Multicellular-Systems-2026.git
 cd Multicellular-Systems-2026
 ```
