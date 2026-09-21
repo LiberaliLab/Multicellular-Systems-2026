@@ -51,7 +51,7 @@ pd.set_option("display.width", 140)
 # The tables live here on Euler. Change this line if your copy is elsewhere.
 DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
-cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 print(f"{cells.n_obs:,} control cells x {cells.n_vars} markers")
 print(f"  obsm: {list(cells.obsm)}   obsp: {list(cells.obsp)}")
 
@@ -302,8 +302,8 @@ pd.DataFrame({
 # ## 6 · Save
 
 # %%
-cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
-full.write_h5ad(DATA / "mcs2026_intensity.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
+full.write_h5ad(DATA / "mcs2026_intensity_downstream.h5ad", compression="gzip")
 print(f"  controls  : {cells.n_obs:,} cells, obs['cell_state'] + clusters + embeddings")
 print(f"  intensity : {full.n_obs:,} cells, obs['cell_state'] projected from the controls")
 

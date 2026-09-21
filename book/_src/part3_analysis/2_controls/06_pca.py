@@ -19,9 +19,8 @@
 # sources of variation** are — before clustering it, before embedding it, before believing
 # anything about it.
 #
-# Principal component analysis answers that literally: it finds the directions along which
-# the cells vary most, in order. What makes it worth doing first is not the plot, it is
-# that every component can be read back to the markers that build it.
+# Principal component analysis (PCA) answers that literally: it finds the directions along which
+# the cells vary most, in order. Furthermore, the components one gets from the PCA are given by groups of genes, which you can look at to determine possible biological reasons driving these differences.
 #
 # | | |
 # |---|---|
@@ -32,10 +31,10 @@
 # | **5** | Save the components |
 #
 # :::{note}
-# **No scaling step here, and no sampling.** Stage 1 already did the first —
+# **We use the normalized and subset(only control conditions)** We have previously done the normalization —
 # [Step 18](../1_preparation/03_normalisation.ipynb) put every value in control-cell SD
-# units — and the second is not needed:
-# [chapter 04](../1_preparation/04_subsetting_and_sketching.ipynb) cut the data to the two
+# units. We also went through how to subset and sketch parts of the data - 
+# [chapter 04](../1_preparation/04_subsetting_and_sketching.ipynb), here we cut the data to the two
 # control conditions, which is small enough to use **every cell of**. This chapter opens
 # that file and starts.
 # :::
@@ -90,7 +89,6 @@ print(f"  wells: {cells.obs.well.nunique()}   units: {cells.uns['provenance']['u
 # every subset, filter and write that follows.
 
 # %%
-matrix = np.asarray(cells.X)
 sc.pp.pca(cells, n_comps=20, random_state=0)
 coords = cells.obsm["X_pca"]
 print(f"  {cells.n_obs:,} cells x {cells.n_vars} markers -> {coords.shape[1]} components")
@@ -99,17 +97,7 @@ print(f"  {cells.n_obs:,} cells x {cells.n_vars} markers -> {coords.shape[1]} co
 # ## 2 · How much does each component explain?
 
 # %%
-variance = pd.Series(cells.uns["pca"]["variance_ratio"], index=range(1, 21), name="share")
-fig, axes = plt.subplots(1, 2, figsize=(11, 3.2))
-axes[0].bar(variance.index, 100 * variance.values, color="0.45")
-axes[0].set(xlabel="component", ylabel="% of variance", title="Scree")
-axes[1].plot(variance.index, 100 * variance.cumsum().values, marker="o")
-axes[1].axhline(80, color="firebrick", ls="--", lw=1)
-axes[1].set(xlabel="components", ylabel="cumulative %", title="How many do you need?")
-fig.tight_layout()
-
-print(f"  PC1 {100*variance.iloc[0]:.1f}%   PC1-2 {100*variance[:2].sum():.1f}%   "
-      f"PC1-5 {100*variance[:5].sum():.1f}%   PC1-10 {100*variance[:10].sum():.1f}%")
+sc.pl.pca_variance_ratio(cells, n_pcs=20, log=True)
 
 # %% [markdown]
 # ## 3 · Colour it by what you already know
@@ -124,31 +112,13 @@ print(f"  PC1 {100*variance.iloc[0]:.1f}%   PC1-2 {100*variance[:2].sum():.1f}% 
 # something your biology does not get to claim.
 
 # %%
-rng = np.random.default_rng(0)
-show = rng.choice(len(coords), size=min(12_000, len(coords)), replace=False)
-rows = cells.obs.row.astype(str).values
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
-
-point = axes[0].scatter(coords[show, 0], coords[show, 1], c=timepoint[show],
-                        cmap="viridis", s=3, alpha=0.5)
-axes[0].set_title("timepoint"); fig.colorbar(point, ax=axes[0], shrink=0.8, label="hours")
-
-for vehicle, colour in [("DMSO", "steelblue"), ("PBS", "darkorange")]:
-    mask = condition[show] == vehicle
-    axes[1].scatter(coords[show][mask, 0], coords[show][mask, 1],
-                    c=colour, s=3, alpha=0.5, label=f"{vehicle} ({mask.sum():,})")
-axes[1].set_title("the two vehicles"); axes[1].legend(markerscale=4, fontsize=8)
-
-for letter, colour in zip(sorted(set(rows)), plt.cm.tab10.colors):
-    mask = rows[show] == letter
-    axes[2].scatter(coords[show][mask, 0], coords[show][mask, 1],
-                    c=[colour], s=3, alpha=0.5, label=letter)
-axes[2].set_title("plate row"); axes[2].legend(markerscale=4, fontsize=8, ncol=2)
-
-for ax in axes:
-    ax.set(xlabel=f"PC1 ({100*variance.iloc[0]:.0f}%)", ylabel=f"PC2 ({100*variance.iloc[1]:.0f}%)")
-fig.tight_layout()
+sc.pl.pca(
+    cells,
+    color=["timepoint_h", "condition", "area", "row"],
+    dimensions=[(0, 1), (0, 1), (0, 1), (2, 3)],
+    ncols=2,
+    size=2,
+)
 
 # %% [markdown]
 # :::{important}
@@ -174,14 +144,25 @@ fig.tight_layout()
 # %% [markdown]
 # ## 4 · What is PC1 made of?
 #
-# The loadings say which markers build each component. This is the step that turns "PC1"
-# into a sentence you can say out loud.
+# The loadings say which markers build each component. 
+#
+# You can plot the PCA loadings in different ways:
+# 1. Using the scanpy function
+# 2. As a table
+# 3. Your own costume function 
 
 # %%
+# 1. Plotting PCA loadings with scanpy function
+sc.pl.pca_loadings(cells, components = '1,2,3')
+
+# %%
+# 2. Table plotting
 loadings = pd.DataFrame(cells.varm["PCs"][:, :3], index=names, columns=["PC1", "PC2", "PC3"])
 loadings.reindex(loadings.PC1.abs().sort_values(ascending=False).index).head(12).round(2)
 
 # %%
+# 3. Costume pca loading functions
+
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.4))
 for ax, pc in zip(axes, ["PC1", "PC2"]):
     top = loadings[pc].reindex(loadings[pc].abs().sort_values(ascending=False).index).head(12)[::-1]
@@ -195,14 +176,21 @@ fig.tight_layout()
 # Usually a component is a **contrast** — some markers up, others down — and you read the
 # two ends against each other.
 #
-# **PC1 here is not.** Every loading is positive, and the largest are all about the same
+# **PC1 here is quite directional** Mostly every loading is positive, and the largest are all about the same
 # size. That is the signature of a *magnitude* axis: it is not separating one biology from
-# another, it is separating cells with more signal from cells with less.
+# another, it is separating cells with more signal from cells with less. However, in the scanpy functions we can also see some that are slightly downregulated, in this dataset this is the type of things you should take into account for the project. And decide which is the best way to plot the data.
 #
 # That is a guess from the shape of the bars. Check it directly against things PC1 was
 # never given — the average marker level, the counterstain, cell size, and time:
 
+# %% [markdown]
+# One way to check possible sources of the different components is using correlations which you can see below.
+#
+# Be careful because a correlation does not mean causation, and maybe as well that multiple things correlate with your different PCs.
+
 # %%
+matrix = np.asarray(cells.X)
+
 pd.DataFrame({
     "Spearman vs PC1": {
         "mean of all 38 markers": stats.spearmanr(coords[:, 0], matrix.mean(axis=1)).statistic,
@@ -214,27 +202,14 @@ pd.DataFrame({
 
 # %% [markdown]
 # :::{important}
-# **PC1 is overall brightness.** It tracks the mean of all 38 markers at ρ ≈ 1.0 — it is
+# **PC1 correlates with overall brightness.** It tracks the mean of all 38 markers at ρ ≈ 1.0 — it is
 # barely a summary, it is that average with extra steps. It rises with DAPI and falls with
 # cell area, so the cells at its high end are the smaller, more densely stained ones. And
 # it is essentially uncorrelated with timepoint, so it is not a clock either.
 #
 # **A third of the variance in this dataset is spent on how bright a cell is** — read the
 # exact share off the scree plot above. That is normal for imaging data and it is not
-# useless: brightness reflects real things like nuclear density and cell state. But it is
-# not a phenotype contrast, and a plot of PC1 against PC2 is mostly a plot of brightness
-# against one real axis.
-#
-# Three responses, all legitimate as long as you pick one out loud:
-#
-# - **Accept it** and read PC2 onward as the structure of interest.
-# - **Regress it out** before clustering, if you believe it is technical.
-# - **Normalise per cell** (divide each cell by its own total signal) so magnitude cannot
-#   dominate — the imaging equivalent of library-size normalisation.
-#
-# This course takes the first: PC1 is named, and the clustering in
-# [chapter 08](08_cell_type_annotation.ipynb) works on markers already scaled within
-# timepoint, so no single magnitude axis runs the result.
+# useless: brightness reflects real things like nuclear density and cell state.
 # :::
 
 # %% [markdown]
@@ -267,7 +242,7 @@ pd.DataFrame({
 # %%
 cells.uns["pca"]["features"] = "the 38 normalised markers"
 print("  obsm:", list(cells.obsm), " varm:", list(cells.varm))
-cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
 cells
 
 # %% [markdown]
@@ -298,25 +273,7 @@ cells
 # :::
 
 # %% [markdown]
-# ### 2. What happens with all 2,587 features?
-#
-# Re-run the PCA on `mcs2026_full.h5ad` — every surviving column instead of the 38 markers.
-# How much variance does PC1 take, and what loads on it?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# Texture columns outnumber intensity columns roughly seven to one, so the components come
-# out describing texture — and because texture features within one marker are highly
-# correlated with each other, a single marker's texture block can dominate a component.
-#
-# More features is not more information. Choosing an interpretable subset is a decision
-# about *what question you are asking*, and it belongs in the notebook, not in a default.
-# :::
-
-# %% [markdown]
-# ### 3. Does the outlier condition need removing?
+# ### 2. Does the outlier condition need removing?
 #
 # This one needs the **full** object, not the controls: the outlier flagged in
 # [Step 16](../1_preparation/03_normalisation.ipynb) is a treatment, and there are no
