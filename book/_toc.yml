@@ -55,21 +55,24 @@ parts:
           - file: part3_analysis/11_your_turn
 
       # --- Part 4: the solutions -------------------------------------------
-      # TO WITHHOLD THEM: comment out the eight lines below and push. That is the
-      # whole edit -- nothing else needs touching.
+      # TO WITHHOLD THEM: comment out the eight lines below, and the matching card
+      # in landing.md, then push.
       # `only_build_toc_files: true` (in _config.yml) means these pages are then
       # never built, so they appear neither on the site nor in its search index.
       # The few "the answers are in Part 4" links in Part 3 quietly become plain
       # text; `suppress_warnings` in _config.yml is what stops that failing the
-      # build. To release them again, delete the '#' characters and push.
-      - file: part4_final_solutions/intro
-        sections:
-          - file: part4_final_solutions/00_full_dataset_analysis
-          - file: part4_final_solutions/01_signaling
-          - file: part4_final_solutions/02_mechanics
-          - file: part4_final_solutions/03_metabolism
-          - file: part4_final_solutions/04_organelles
-          - file: part4_final_solutions/05_integration
+      # build. To release them again, delete the '#' characters and push --
+      # and uncomment the "Part 4 - Solutions" card in landing.md, which is a
+      # grid-item-card rather than an inline link and so does NOT degrade to
+      # plain text on its own.
+      # - file: part4_final_solutions/intro
+      #   sections:
+      #     - file: part4_final_solutions/00_full_dataset_analysis
+      #     - file: part4_final_solutions/01_signaling
+      #     - file: part4_final_solutions/02_mechanics
+      #     - file: part4_final_solutions/03_metabolism
+      #     - file: part4_final_solutions/04_organelles
+      #     - file: part4_final_solutions/05_integration
 
   # Napari is optional and runs on a laptop rather than Euler, so it sits at the end
   # rather than interrupting the two computational parts. The folder is still named

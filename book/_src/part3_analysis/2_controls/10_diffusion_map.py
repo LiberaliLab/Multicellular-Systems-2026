@@ -67,7 +67,7 @@ pd.set_option("display.width", 140)
 # The tables live here on Euler. Change this line if your copy is elsewhere.
 DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
-cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"{cells.n_obs:,} control cells")
 print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
@@ -248,6 +248,9 @@ pseudotime = cells.obs.dpt_pseudotime.values
 print(f"  pseudotime: {np.isfinite(pseudotime).sum():,} of {len(pseudotime):,} cells finite, "
       f"range {pseudotime.min():.2f} to {pseudotime.max():.2f}")
 
+# %%
+sc.pl.umap(cells, color=["dpt_pseudotime"])
+
 # %% [markdown]
 # :::{warning}
 # **Pseudotime is not time.** It is a distance in a graph, expressed on an arbitrary scale
@@ -401,7 +404,7 @@ print(f"  p_floor = {2 / comb(len(pbs) + len(dmso), len(pbs)):.2e}")
 # ## 7 · Save
 
 # %%
-cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
 print(f"  obsm : {list(cells.obsm)}")
 print(f"  obs  : cell_state, dpt_pseudotime, cluster, leiden_*")
 print(f"  uns  : iroot = {cells.uns['iroot']}")

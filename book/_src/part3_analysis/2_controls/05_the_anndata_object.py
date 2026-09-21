@@ -217,6 +217,7 @@ pd.DataFrame([
 # |---|---|---|
 # | `mcs2026_controls.h5ad` | cell | **you are in Stage 2.** DMSO and PBS, every cell of them |
 # | `mcs2026_intensity.h5ad` | cell | you need all 18 conditions — counting, proportions, projecting labels |
+# | `mcs2026_intensity_shape.h5ad` | cell | you need all 18 conditions and shape features — counting, proportions, projecting labels |
 # | `mcs2026_sketch.h5ad` | cell | you are embedding all 18 conditions and 653,000 cells will not fit |
 # | `mcs2026_full.h5ad` | cell | you need **texture**, or a marker statistic other than the mean |
 #

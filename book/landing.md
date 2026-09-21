@@ -7,7 +7,8 @@ This website hosts the material for the hands-on image-analysis sessions of
 
 **Edition: Autumn 2026**
 
-The course has three taught parts, plus the worked solutions:
+The course has three taught parts. The worked solutions are released after the group
+presentations.
 
 ::::{grid} 1 1 3 3
 :gutter: 3
@@ -41,6 +42,11 @@ Runs on **Euler**
 :::
 ::::
 
+<!-- Part 4 is withheld until after the group presentations. This card links to a
+     document that is commented out of _toc.yml and therefore never built, so unlike an
+     inline link it would render dead rather than degrading to plain text. Uncomment it
+     at the same time as the _toc.yml block.
+
 ::::{grid} 1 1 1 1
 :gutter: 3
 
@@ -54,6 +60,7 @@ own attempt, not before.
 Released **after the group work**
 :::
 ::::
+-->
 
 ::::{grid} 1 1 1 1
 :gutter: 3
