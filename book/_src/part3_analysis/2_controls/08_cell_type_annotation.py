@@ -215,8 +215,9 @@ sc.pl.dotplot(cells, identity, groupby="cell_state", standard_scale="var",
               swap_axes=False, figsize=(6.5, 2.6))
 
 # %% [markdown]
-# And on the embedding from chapter 07 — remembering that this UMAP was and the clusters come from the same eight markers, so this
-# is a picture of the clustering rather than independent evidence for it:
+# And on the embedding from chapter 07 — remembering that this UMAP and the clusters
+# come from the same eight markers, so this is a picture of the clustering rather than
+# independent evidence for it:
 
 # %%
 sc.pl.umap(cells, color=["cell_state", "leiden_0.6"], ncols=2, s=6, frameon=False)

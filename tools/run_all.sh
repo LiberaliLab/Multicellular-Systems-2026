@@ -7,11 +7,15 @@
 #
 # ORDER MATTERS. The chapters form a chain: chapter 03 writes mcs2026_intensity.h5ad,
 # chapter 04 cuts it into mcs2026_controls.h5ad (Stage 2) and mcs2026_sketch.h5ad
-# (Part 4), and chapters 06-10 each add a slot (X_pca, X_umap, cell_state, paga,
-# X_diffmap) to the controls file. Re-running an early chapter on its own therefore
-# REBUILDS those files and silently discards everything the later ones wrote into
-# them -- they then fail with a missing obsm or obs key. If you re-run one chapter,
-# re-run the rest of the chain after it.
+# (Part 4). Chapter 06 reads mcs2026_controls.h5ad and, from there on, renames it:
+# 06-10 each add a slot (X_pca, X_umap, cell_state, paga, X_diffmap) to
+# mcs2026_controls_downstream.h5ad, overwriting that one file each time. Chapter 08
+# also projects cell_state onto every condition and saves that as
+# mcs2026_intensity_downstream.h5ad -- Part 4's 00_full_dataset_analysis reads both
+# _downstream files, not the plain ones. Re-running an early chapter on its own
+# therefore REBUILDS those files and silently discards everything the later ones
+# wrote into them -- they then fail with a missing obsm or obs key. If you re-run
+# one chapter, re-run the rest of the chain after it.
 #
 # 01_columns_to_markers needs the full 13 GB feature table; the others read what
 # the chapter before them wrote.

@@ -67,7 +67,7 @@ pd.set_option("display.width", 150)
 # The tables live here on Euler. Change this line if your copy is elsewhere.
 DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
-cells = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_intensity_downstream.h5ad")
 wells = (cells.to_df()
          .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
                    cells.obs.well.astype(str)], observed=True).mean()
@@ -478,7 +478,7 @@ fig.tight_layout()
 # every condition its own axis and make them incomparable by construction.
 
 # %%
-controls = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+controls = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 pseudotime = transfer_values(
     controls.obsm["X_identity"],
     controls.obs.dpt_pseudotime.values,

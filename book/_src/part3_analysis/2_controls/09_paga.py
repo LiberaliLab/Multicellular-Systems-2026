@@ -301,7 +301,7 @@ composition.join(summary[["cells", "state (ch 08)"]])
 # from connectivity.
 
 # %%
-sc.tl.paga(cells, groups="fine")          # on the 38-marker graph, which the UMAP uses
+sc.tl.paga(cells, groups="fine")          # on the 8-marker identity graph, which the UMAP uses
 sc.pl.paga(cells, plot=False)             # computes uns['paga']['pos'] -- required below
 sc.tl.umap(cells, init_pos="paga", random_state=0)
 
