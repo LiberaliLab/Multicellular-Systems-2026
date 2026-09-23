@@ -308,7 +308,7 @@ print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(full_adata.obs.ti
 
 # %% [markdown]
 # The code behind `normalise_cells` lives in
-# [`src/mcs2026/analysis.py`](https://github.com/Maaraujo-nv/Multicellular-Systems-2026/blob/main/src/mcs2026/analysis.py)
+# [`src/mcs2026/analysis.py`](https://github.com/LiberaliLab/Multicellular-Systems-2026/blob/main/src/mcs2026/analysis.py)
 # if you want to read what it actually does.
 
 # %% [markdown]

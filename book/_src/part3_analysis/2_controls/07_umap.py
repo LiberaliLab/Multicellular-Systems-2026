@@ -63,7 +63,7 @@ pd.set_option("display.width", 140)
 # The tables live here on Euler. Change this line if your copy is elsewhere.
 DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
-cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers")
 print(f"  conditions: {sorted(cells.obs.condition.astype(str).unique())}, "
       f"{cells.obs.well.nunique()} wells")
@@ -481,7 +481,7 @@ difference.reindex(difference.abs().sort_values(ascending=False).index).head(5).
 # reuse them rather than recomputing.
 
 # %%
-cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
 print(f"  obsm : {list(cells.obsm)}")
 print(f"  obsp : {list(cells.obsp)}")
 print(f"  uns  : {sorted(cells.uns)}")

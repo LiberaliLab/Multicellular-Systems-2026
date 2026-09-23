@@ -57,7 +57,7 @@ pd.set_option("display.width", 140)
 # The tables live here on Euler. Change this line if your copy is elsewhere.
 DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
-cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")
+cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 
 print(f"{cells.n_obs:,} control cells")
@@ -308,6 +308,9 @@ sc.tl.umap(cells, init_pos="paga", random_state=0)
 sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
            ncols=3, s=6, frameon=False)
 
+# %%
+sc.tl.draw_graph(cells, init_pos="paga")
+
 # %% [markdown]
 # :::{note}
 # **`sc.pl.paga` must run before `sc.tl.umap(init_pos="paga")`.** The layout positions are
@@ -324,7 +327,7 @@ sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
 # ## Save
 
 # %%
-cells.write_h5ad(DATA / "mcs2026_controls.h5ad", compression="gzip")
+cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
 print(f"  obs : fine ({cells.obs.fine.nunique()} clusters), cell_state")
 print(f"  obsm: {list(cells.obsm)}")
 print(f"  uns : paga connectivities for {len(connectivity)} clusters")
