@@ -62,7 +62,7 @@ identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_nam
 
 print(f"{cells.n_obs:,} control cells")
 print(f"  states from chapter 08: {list(cells.obs.cell_state.cat.categories)}")
-print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
+print(f"  graph : {cells.obsp['identity_connectivities'].nnz:,} edges, from chapter 07")
 
 # %% [markdown]
 # ## 1 · Cluster finer than you want to name
@@ -77,7 +77,8 @@ print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
 # %%
 for resolution in [0.1, 0.3]:
     sc.tl.leiden(cells, resolution=resolution, key_added=f"leiden_{resolution}",
-                 flavor="igraph", n_iterations=2, random_state=0)
+                 flavor="igraph", n_iterations=2, random_state=0,
+                 neighbors_key="identity")
     counts = cells.obs[f"leiden_{resolution}"].value_counts()
     print(f"  resolution {resolution}: {len(counts):2d} clusters, "
           f"smallest {counts.min():,} cells ({counts.min() / cells.n_obs:.2%})")
@@ -128,7 +129,7 @@ both.round(2).join(sizes.rename("cells"))
 # be if edges were placed at random.
 
 # %%
-sc.tl.paga(cells, groups="fine")
+sc.tl.paga(cells, groups="fine", neighbors_key="identity")
 
 connectivity = pd.DataFrame(cells.uns["paga"]["connectivities"].toarray(),
                             index=profile.index, columns=profile.index)
@@ -301,15 +302,15 @@ composition.join(summary[["cells", "state (ch 08)"]])
 # from connectivity.
 
 # %%
-sc.tl.paga(cells, groups="fine")          # on the 8-marker identity graph, which the UMAP uses
+sc.tl.paga(cells, groups="fine", neighbors_key="identity")   # the graph the UMAP uses
 sc.pl.paga(cells, plot=False)             # computes uns['paga']['pos'] -- required below
-sc.tl.umap(cells, init_pos="paga", random_state=0)
+sc.tl.umap(cells, init_pos="paga", random_state=0, neighbors_key="identity")
 
 sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
            ncols=3, s=6, frameon=False)
 
 # %%
-sc.tl.draw_graph(cells, init_pos="paga")
+sc.tl.draw_graph(cells, init_pos="paga", neighbors_key="identity")
 
 # %% [markdown]
 # :::{note}

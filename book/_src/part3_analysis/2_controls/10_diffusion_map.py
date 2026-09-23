@@ -70,7 +70,7 @@ DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"{cells.n_obs:,} control cells")
-print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
+print(f"  graph : {cells.obsp['identity_connectivities'].nnz:,} edges, from chapter 07")
 print(f"  states: {list(cells.obs.cell_state.cat.categories)}")
 
 # %% [markdown]
@@ -81,7 +81,7 @@ print(f"  states: {list(cells.obs.cell_state.cat.categories)}")
 # Section 3 builds the alternative and shows how much the choice decides.
 
 # %%
-sc.tl.diffmap(cells, n_comps=15)
+sc.tl.diffmap(cells, n_comps=15, neighbors_key="identity")
 print(f"  X_diffmap: {cells.obsm['X_diffmap'].shape}")
 
 evals = pd.Series(cells.uns["diffmap_evals"], index=[f"DC{i}" for i in range(15)])
@@ -243,7 +243,7 @@ print(f"  root: cell {root}, well {cells.obs.well.iloc[root]}, "
       f"Oct4 {oct4[root]:+.2f} SDs (max of the candidates)")
 
 # %%
-sc.tl.dpt(cells)
+sc.tl.dpt(cells, neighbors_key="identity")
 pseudotime = cells.obs.dpt_pseudotime.values
 print(f"  pseudotime: {np.isfinite(pseudotime).sum():,} of {len(pseudotime):,} cells finite, "
       f"range {pseudotime.min():.2f} to {pseudotime.max():.2f}")

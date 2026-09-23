@@ -77,7 +77,7 @@ def transfer_labels(source, labels, target, k=15):
 # %%
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"  {len(identity)} markers: {', '.join(cells.var.loc[identity, 'marker'])}")
-print(f"  graph: {cells.obsp['connectivities'].nnz:,} edges over {cells.n_obs:,} cells")
+print(f"  graph: {cells.obsp['identity_connectivities'].nnz:,} edges over {cells.n_obs:,} cells")
 print(f"  obsm : {list(cells.obsm)}")
 
 # %% [markdown]
@@ -98,7 +98,8 @@ print(f"  obsm : {list(cells.obsm)}")
 # %%
 for resolution in [0.05, 0.1, 0.3, 0.6]:
     sc.tl.leiden(cells, resolution=resolution, key_added=f"leiden_{resolution}",
-                 flavor="igraph", n_iterations=2, random_state=0)
+                 flavor="igraph", n_iterations=2, random_state=0,
+                 neighbors_key="identity")
     counts = cells.obs[f"leiden_{resolution}"].value_counts()
     print(f"  resolution {resolution:<5} {len(counts):2d} clusters, "
           f"smallest {counts.min():>5,} cells ({counts.min()/cells.n_obs:.2%})")
