@@ -309,8 +309,21 @@ sc.tl.umap(cells, init_pos="paga", random_state=0, neighbors_key="identity")
 sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
            ncols=3, s=6, frameon=False)
 
+# %% [markdown]
+# ### The same graph, force-directed
+#
+# `sc.tl.draw_graph` starts from those same PAGA positions but keeps going: connected
+# cells pull together, everything else pushes apart, and the layout settles where those
+# forces balance. It spreads out trajectories that UMAP packs into blobs, which is why it
+# is the usual companion to a PAGA graph. The same caveat applies though — the distance
+# between two clusters that ended up far apart still means nothing.
+#
+
 # %%
 sc.tl.draw_graph(cells, init_pos="paga", neighbors_key="identity")
+
+sc.pl.draw_graph(cells, color=["fine", "cell_state", "timepoint_h"],
+                 ncols=3, s=6, frameon=False)
 
 # %% [markdown]
 # :::{note}

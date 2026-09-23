@@ -119,10 +119,12 @@ Notebook 11
 :::
 ::::
 
-## Before the first session
+## Before 2 October
 
-Work through [Setup](setup/index.md) in order. It takes about half an hour, and the
-first session assumes it is done.
+Work through [Setup](setup/index.md) in order. It takes about half an hour. Attempt it on
+your own — the session on 2 October is where we fix whatever did not work, not where you
+start. The one thing that cannot wait is your **Euler account**: activating it has a lead
+time nobody can shorten on the day.
 
 ## Instructors
 - **Manuel I. Araujo Novoa** — Liberali Lab, FMI / D-BSSE, ETH Zürich
