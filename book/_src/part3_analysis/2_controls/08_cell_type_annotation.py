@@ -49,7 +49,7 @@ plt.rcParams.update({          # the house style, no package needed
 pd.set_option("display.width", 140)
 
 # The tables live here on Euler. Change this line if your copy is elsewhere.
-DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+DATA = Path("/cluster/project/mcsliberali/file_outputs")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 print(f"{cells.n_obs:,} control cells x {cells.n_vars} markers")
@@ -62,6 +62,16 @@ def transfer_labels(source, labels, target, k=15):
     return model.predict(target)
 
 
+
+# %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
 
 # %% [markdown]
 # ## 1 · The graph you already have
@@ -283,7 +293,8 @@ print(pd.crosstab(pd.Series(labels[test], name="annotated"),
 # ones, which contribute least to the average.
 
 # %%
-full = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+DATA_public = Path("/cluster/project/mcsliberali/data_mcs_2026")
+full = sc.read_h5ad(DATA_public / "mcs2026_intensity.h5ad")
 full.obs["cell_state"] = pd.Categorical(
     transfer_labels(space, labels, np.asarray(full[:, identity].X)),
     categories=assigned,

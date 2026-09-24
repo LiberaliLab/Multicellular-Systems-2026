@@ -72,13 +72,23 @@ def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
 pd.set_option("display.width", 140)
 
 # The tables live here on Euler. Change this line if your copy is elsewhere.
-DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+DATA = Path("/cluster/project/mcsliberali/file_outputs")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
 print(f"{cells.n_obs:,} control cells")
 print(f"  graph : {cells.obsp['identity_connectivities'].nnz:,} edges, from chapter 07")
 print(f"  states: {list(cells.obs.cell_state.cat.categories)}")
+
+# %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
 
 # %% [markdown]
 # ## 1 · Compute it, and read the spectrum
@@ -430,7 +440,8 @@ fig.tight_layout()
 # whether DC1 comes out describing the same thing.
 
 # %%
-plate = sc.read_h5ad(DATA / "mcs2026_sketch.h5ad")
+DATA_public = Path("/cluster/project/mcsliberali/data_mcs_2026")
+plate = sc.read_h5ad(DATA_public / "mcs2026_sketch.h5ad")
 plate.obsm["X_identity"] = np.asarray(plate[:, identity].X)
 sc.pp.neighbors(plate, n_neighbors=15, use_rep="X_identity", random_state=0)
 sc.tl.diffmap(plate, n_comps=10)

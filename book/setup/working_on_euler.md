@@ -3,18 +3,28 @@
 Two things that are not about analysis, and will each cost you an afternoon if nobody
 says them first.
 
-## The data folder is read-only
+## Three folders, and only one of them is yours
 
-`/cluster/project/mcsliberali/data_mcs_2026` holds the raw feature table and everything
-Stage 1 built. **You can read it. You cannot write to it.**
+| | |
+|---|---|
+| `/cluster/project/mcsliberali/data_mcs_2026` | Shared, **read-only**, and the only one you can see. The raw feature table and everything Stage 1 built. |
+| `/cluster/project/mcsliberali/file_outputs` | The **course's own** run folder — where the outputs printed in these pages were produced. You have no access to it. |
+| `~/mcs2026` | **Yours.** Everything you make goes here. |
 
-That matters because the chapters from 05 onwards form a chain: each one opens an `.h5ad`,
-adds something, and writes it back. Chapter 06 adds the PCA, 07 the UMAP and the neighbour
-graph, 08 the cell states, 10 the pseudotime. Those writes have to land somewhere you own.
+:::{important}
+**The `DATA` line at the top of chapters 06 to 10 points at `file_outputs`. That path is
+ours, not yours — replace it with your own folder.**
+
+Those chapters were run to produce the figures you see on these pages, and the path they
+carry is the one that run used. Left as it is, it will fail for you, because you cannot
+read or write there.
+:::
 
 ### The pattern
 
-Open the shared file once, then work out of your own folder:
+Chapters 06 to 10 form a chain: each one opens an `.h5ad`, adds something, and writes it
+back. Chapter 06 adds the PCA, 07 the UMAP and the neighbour graph, 08 the cell states, 10
+the pseudotime. So you need somewhere to put them.
 
 ```python
 from pathlib import Path
@@ -24,20 +34,25 @@ MINE = Path.home() / "mcs2026"                              # yours
 MINE.mkdir(exist_ok=True)
 ```
 
-From chapter 05 on, read from `MINE` if you have already been through the chapter before
-it, and fall back to the shared copy the first time:
+**Load from `DATA` once, at the start**, to make your own copy:
 
 ```python
-path = MINE / "mcs2026_controls_downstream.h5ad"
-cells = sc.read_h5ad(path if path.exists() else DATA / "mcs2026_controls.h5ad")
-
+cells = sc.read_h5ad(DATA / "mcs2026_controls.h5ad")        # chapter 06
 # ... your analysis ...
-
 cells.write_h5ad(MINE / "mcs2026_controls_downstream.h5ad", compression="gzip")
 ```
 
-The chapters are written with a single `DATA` because one path reads more clearly than two.
-**You have to change the write to `MINE`**, and then the read in every chapter after it.
+**From chapter 07 onwards, read and write `MINE`:**
+
+```python
+cells = sc.read_h5ad(MINE / "mcs2026_controls_downstream.h5ad")
+# ... your analysis ...
+cells.write_h5ad(MINE / "mcs2026_controls_downstream.h5ad", compression="gzip")
+```
+
+The two files that stay in `DATA` all the way through are the shared Stage 1 outputs that
+nothing downstream rewrites — `mcs2026_intensity.h5ad` (chapter 08) and
+`mcs2026_sketch.h5ad` (chapter 10). Keep reading those from `DATA`.
 
 :::{warning}
 Your `$HOME` quota is around 16 GB. The controls object is small and fine to keep there.

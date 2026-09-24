@@ -47,26 +47,21 @@ DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
 # %% [markdown]
 # :::{warning}
-# **That folder is read-only, and from here on every chapter writes.**
+# **Three folders, and only one of them is yours.**
 #
-# `DATA` is shared: you can read it, you cannot write to it. But chapter 06 adds the PCA to
-# the object, 07 the UMAP, 08 the cell states, 10 the pseudotime — each one opens an `.h5ad`
-# and writes it back.
+# - `data_mcs_2026` — shared, **read-only**, and the only one you can see. This is what you
+#   load at the start.
+# - `file_outputs` — the course's own run folder, where the outputs printed in these pages
+#   were produced. You have no access to it, but you will see it in the `DATA` line at the
+#   top of chapters 06 to 10. **Replace that path with your own.**
+# - `~/mcs2026` — yours. Everything you make goes here.
 #
-# So the pattern from here on is: **open the shared file once, then save into your own folder
-# and open from there.**
+# It matters from the next chapter on, because 06 to 10 form a chain: each opens an `.h5ad`,
+# adds something, and writes it back. Load from `data_mcs_2026` once, save into your own
+# folder, and read from your own folder after that.
 #
-# ```python
-# MINE = Path.home() / "mcs2026"
-# MINE.mkdir(exist_ok=True)
-#
-# cells.write_h5ad(MINE / "mcs2026_controls_downstream.h5ad", compression="gzip")
-# ```
-#
-# The chapters are written with one `DATA` path because it reads more clearly. Changing the
-# write to `MINE`, and the read in every chapter after it, is yours to do —
-# [Working on Euler](../../setup/working_on_euler.md) has the full pattern and the `$HOME`
-# quota you need to respect.
+# [Working on Euler](../../setup/working_on_euler.md) has the pattern and the `$HOME` quota
+# you need to respect.
 # :::
 
 # %% [markdown]
