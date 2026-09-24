@@ -30,8 +30,7 @@
 # :::{note}
 # These are the **controls** — every DMSO and PBS cell, and nothing else. Neither is a
 # treatment, so a UMAP of them should show the cells arranging themselves by time and by
-# state, and should show nothing at all about which of the two they came from. Section 5
-# checks whether it does, with numbers rather than by eye.
+# state, and should show nothing at all about which of the two they came from.
 # :::
 
 # %%
@@ -41,6 +40,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import math
 
 plt.rcParams.update({          # the house style, no package needed
     "figure.dpi": 110, "savefig.dpi": 300, "savefig.bbox": "tight",
@@ -91,186 +91,118 @@ print(f"  obsm: {list(cells.obsm)}")
 # | GATA3 | **trophectoderm** |
 # | GATA4, GATA6, SOX17, PDGFRa | **hypoblast** (primitive endoderm) |
 
+# %% [markdown]
+# Below, we will create a view only containing the intensity values for the markers that set the identity of the cell lineages. 
+#
+# This simplifies the UMAP, as it forces cells into the groups we expect to obtain, and reduces noise that may come from other markers, but also reduces our ability to see new cell states and efects.
+#
+# We basically want to reduce the dimensionality of the dataset and only include the most informative markers. This step is commonly known as feature selection in scRNAseq, but in imaging data is much more drastic.
+
 # %%
+# Here we set the markers from the identity panel
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
+
+# Here we subset the X based on those markers and store it as a new matrix in obsm
 cells.obsm["X_identity"] = np.asarray(cells[:, identity].X)
+
 cells.var.loc[identity, ["marker", "round", "channel", "species", "failed"]]
 
 # %% [markdown]
-# :::{note}
-# **Look at the PDGFRa row.** It was stained twice — round 0 in Cy5, which is one of the two
-# stains [Step 9](../1_preparation/01_columns_to_markers.ipynb) marked `failed`, and round 18
-# in FITC, which passed. `resolve_panel` takes the round-18 column because it reads the
-# `failed` flag; asking for "the PDGFRa column" by name would have taken whichever came
-# first, and that is the dead one.
+# ### Why do we not re-run PCA after subsetting?
 #
-# This is the payoff of Steps 7 and 9 in a single line. The decoder is not bookkeeping.
-# :::
+# There is no need to re-run PCA on the subset of features because we have reduced the number of features enough so that dimensionality reduction is not of importance anymore.
+#
+# Therefore, we directly calculate the neighbourhood graph. These graphs can be saved under specific keys to separate runs with different parameters or with different data. Here we run using the subset; therefore, we can use `use_rep` to identify what data to use and `key_added` to save the calculated under specific names.
 
 # %%
-sc.pp.neighbors(cells, n_neighbors=15, use_rep="X_identity", random_state=0)
-print(f"  graph: {cells.obsp['connectivities'].shape[0]:,} cells, "
-      f"{cells.obsp['connectivities'].nnz:,} edges")
+# Here we calculate the neighbourhood graph
+sc.pp.neighbors(cells, n_neighbors=20, use_rep="X_identity", random_state=0, key_added="identity")
+
+# Here we can show the size of the graphs
+print(f"  graph: {cells.obsp['identity_connectivities'].shape[0]:,} cells, "
+      f"{cells.obsp['identity_connectivities'].nnz:,} edges")
 print(f"  obsp: {list(cells.obsp)}")
+
 
 
 # %% [markdown]
 # `n_neighbors` is the one parameter that changes the picture most. Small values emphasise
-# local structure and fragment the map; large values smooth it into continents. There is no
-# correct value — Exercise 1 asks you to look at three.
+# local structure and fragment the map; large values smooth it into continents. 
 #
-# The graph lands in `obsp`, the slot for cell × cell matrices. It is sparse, and it is what
-# chapters 08, 09 and 10 all reuse — clusters, an abstracted graph and a diffusion map are
-# three different questions asked of this one object.
+# Each graph lands in `obsp`, the slot for cell × cell matrices — sparse, and named after the
+# `key_added` you passed, so the object now carries `identity_*` and `fullintensity_*` side
+# by side. Chapters 08, 09 and 10 all reuse the **identity** graph, naming it with
+# `neighbors_key="identity"` — clusters, an abstracted graph and a diffusion map are three
+# different questions asked of that one object.
 
 # %% [markdown]
-# ### Was cutting to eight a good idea?
+# ### Running PCA and neighbourhood calculation of full intensity dataset
+# If we use the full 38 marker dataset we need to first perform PCA for dimensionality reduction, then storing using `key_added` argument.
 #
-# It is a claim, so test it. Build the *other* graph — the one from chapter 06's PCA of all
-# 38 markers — and ask both the same question: how often does a cell's neighbour share its
-# label, against how often it would by chance?
-#
-# The labels split into two kinds. **Timepoint** is real biology and a good graph should find
-# it. **Well** and **plate row** are batch: nothing was done differently to these wells, so
-# any structure there is the assay, not the cells.
-
-# %% [markdown]
-# The measure is short enough to read, and worth reading: two details in it are what make
-# the answer trustworthy, and both are easy to get wrong.
-#
-# **Self-pairs must not count.** scanpy stores each cell as its own neighbour in `distances`,
-# so a cell would always "share its label with itself" and every ratio would drift toward 1.
-#
-# **`within` and `exclude` ask different questions.** `within` compares only inside a block and
-# recomputes chance there. `exclude` throws away pairs that share a *nested* label — which is
-# how you tell a real plate-row effect from the well effect wearing a row's clothes.
+# Then we can calculate the neighbourhood graph using the PCA results.
 
 # %%
-def neighbour_purity(data, labels, *, within=None, exclude=None, neighbors_key=None):
-    """How often a cell's neighbours share its label, against chance.
-
-    `within` restricts every comparison to cells in the same block, so chance is
-    recomputed inside each block. `exclude` drops pairs that share a nested
-    label -- pass the well when asking about the plate row, or the row effect you
-    measure is really the well effect wearing a row's clothes.
-
-    Self-pairs never count. scanpy stores each cell as its own neighbour in
-    `distances` on real data and not on small synthetic data; left in, every
-    ratio drifts toward 1. With no `exclude`, each cell is its own group, so
-    "different group" already means "not itself".
-    """
-    key = data.uns[neighbors_key or "neighbors"]["distances_key"]
-    graph = data.obsp[key]
-    labels = np.asarray(labels)
-    n = len(labels)
-    blocks = np.asarray(within) if within is not None else np.zeros(n, int)
-    groups = np.asarray(exclude) if exclude is not None else np.arange(n)
-
-    rows = np.repeat(np.arange(n), np.diff(graph.indptr))     # every stored edge
-    cols = graph.indices
-    keep = (blocks[rows] == blocks[cols]) & (groups[rows] != groups[cols])
-    same = int((labels[rows[keep]] == labels[cols[keep]]).sum())
-    pairs = int(keep.sum())
-
-    # Chance, as a count of eligible pairs: draw two cells from one block, reject
-    # them if `exclude` groups them together, ask how often the labels match.
-    matching = eligible = 0.0
-    frame = pd.DataFrame({"block": blocks, "label": labels, "group": groups})
-    for _, chunk in frame.groupby("block", observed=True):
-        by_label = chunk.groupby("label", observed=True).size()
-        by_group = chunk.groupby("group", observed=True).size()
-        by_both = chunk.groupby(["label", "group"], observed=True).size()
-        matching += float((by_label ** 2).sum() - (by_both ** 2).sum())
-        eligible += float(len(chunk) ** 2 - (by_group ** 2).sum())
-    expected = matching / eligible if eligible else float("nan")
-    return {"observed": same / pairs if pairs else float("nan"),
-            "expected": expected,
-            "ratio": (same / pairs) / expected if pairs and expected else float("nan"),
-            "pairs": pairs}
-
-
-# %%
-alternative = cells.copy()
-sc.pp.pca(alternative, n_comps=20, random_state=0)
-sc.pp.neighbors(alternative, n_neighbors=15, n_pcs=15, random_state=0)
-
-block = (cells.obs.condition.astype(str) + "_" + cells.obs.timepoint_h.astype(str)).values
-labels = {
-    "timepoint — real": (cells.obs.timepoint_h.astype(int), {}),
-    "condition — should be nothing": (cells.obs.condition.astype(str), {}),
-    "well": (cells.obs.well.astype(str), {}),
-    "well, within condition × timepoint": (cells.obs.well.astype(str), {"within": block}),
-    "plate row": (cells.obs.row.astype(str), {}),
-}
-comparison = pd.DataFrame({
-    "all 38, via PCA": {name: neighbour_purity(alternative, v, **kw)["ratio"]
-                        for name, (v, kw) in labels.items()},
-    "the 8 identity markers": {name: neighbour_purity(cells, v, **kw)["ratio"]
-                               for name, (v, kw) in labels.items()},
-}).round(2)
-comparison.index.name = "neighbours share their…"
-comparison
-
-# %% [markdown]
-# :::{important}
-# **The cut halves the batch effect and leaves the biology exactly where it was.**
-#
-# Timepoint purity is *identical* on both graphs — the differentiation signal does not care
-# which of the two feature sets you used. But cells from the same well neighbour each other
-# far less often once the other thirty markers are gone, and the same is true of plate row.
-#
-# The thirty markers you dropped were not carrying identity. They were carrying **well-to-
-# well staining variation**, which every marker has a little of, and which thirty of them
-# add up to. Choosing eight did not discard information so much as decline to average in
-# thirty copies of the assay's noise.
-#
-# That is the general argument for a panel, and it is worth more than the specific numbers:
-# **a feature you include for completeness still votes.** If it has nothing to say about
-# your question, what it votes with is its noise.
-# :::
+sc.pp.pca(cells, n_comps=10, random_state=0, key_added = "X_pca_full")
+sc.pp.neighbors(cells, n_neighbors=10, n_pcs=8, random_state=0,use_rep = "X_pca_full", key_added="fullintensity")
 
 # %% [markdown]
 # ## 2 · Run UMAP
 
 # %%
-sc.tl.umap(cells, random_state=0)
-coords = cells.obsm["X_umap"]
+sc.tl.umap(cells, random_state=0, neighbors_key = "fullintensity", key_added = "X_umap_fullintensity")
+
+# %%
+sc.tl.umap(cells, random_state=0, neighbors_key = "identity", key_added = "X_umap_identity")
+
+# Show coordinate matrix that is plotted onto the graph and list available dimensionality reductions
+coords = cells.obsm["X_umap_identity"]
 print(f"  embedded {coords.shape[0]:,} cells into {coords.shape[1]} dimensions")
 print(f"  obsm: {list(cells.obsm)}")
 
 # %% [markdown]
-# ## 3 · Colour it by everything you know
+# ## 3 · Plot UMAPs using both embeddings
 #
-# A UMAP on its own tells you nothing at all. It becomes evidence only when coloured by a
-# variable you did **not** use to build it — and the graph above was built from markers
-# only, so every column of `obs` qualifies.
+# Two Scanpy functions allow plotting of UMAPs: one is `sc.pl.umap()` and the other `sc.pl.embedding()`.
 #
-# The quickest way is scanpy's own plotter, which takes anything in `obs` or any marker
-# name and handles the legend for you.
+# - `sc.pl.umap()` allows normal UMAP plotting from obsm named `X_umap`
+# - `sc.pl.embedding()` allows to choose the name of the embedding through the use of the `basis` argument.
 #
-# `vmin`/`vmax` are not decoration. Intensities have long tails — one cell 30 SDs above the
-# control will take the whole colour bar and leave every other cell the same shade of dark
-# blue. Clipping to the 2nd and 98th percentiles shows the structure instead of the
-# outlier, and you say so in the caption.
+# ### 3.1 Plotting using `sc.pl.embedding()`
+#
+# First, we plot based on the subset of only `identity` markers.
 
 # %%
+sc.pl.embedding(cells, basis="X_umap_identity", color=["condition", "timepoint_h", "Oct4", "GATA4"],
+           ncols=2, s=6, frameon=False, cmap="viridis", vmin="p2", vmax="p98")
+
+# %% [markdown]
+# Secondly, we plot based on the full intensity marker set (`fullintensity`)
+
+# %%
+sc.pl.embedding(cells, basis="X_umap_fullintensity", color=["condition", "timepoint_h", "Oct4", "GATA4"],
+           ncols=2, s=6, frameon=False, cmap="viridis", vmin="p2", vmax="p98")
+
+# %% [markdown]
+# ### 3.2 Plotting using `sc.pl.umap()` requires an extra line
+#
+# In this extra step we transfer the data stored in the custom obsm keys into `X_umap`, so that the function can resolve it.
+
+# %%
+cells.obsm['X_umap'] = cells.obsm['X_umap_fullintensity'] # extra step
+
+sc.pl.umap(cells, color=["condition", "timepoint_h", "Oct4", "GATA4"],
+           ncols=2, s=6, frameon=False, cmap="viridis", vmin="p2", vmax="p98")
+
+# %%
+cells.obsm['X_umap'] = cells.obsm['X_umap_identity']
 sc.pl.umap(cells, color=["condition", "timepoint_h", "Oct4", "GATA4"],
            ncols=2, s=6, frameon=False, cmap="viridis", vmin="p2", vmax="p98")
 
 # %% [markdown]
-# Four panels, and they divide into two pairs.
-#
-# | coloured by | should it show structure? |
-# |---|---|
-# | `condition` — DMSO against PBS | **no.** Neither is a treatment |
-# | `timepoint_h` | **yes.** Two days of differentiation is real |
-# | `Oct4` | **yes.** Pluripotent cells are a real population |
-# | `GATA4` | **yes**, and somewhere else — that is the state they become |
-#
-# Read the first panel against the other three. A method that separated the two controls
-# while also separating time and lineage would be telling you it is sensitive; a method
-# that separates *only* the controls would be telling you it is broken. Section 5 puts a
-# number on which of those happened.
+# `vmin`/`vmax` are used because intensities have long tails — one cell 30 SDs above the
+# control will take the whole colour bar and leave every other cell the same shade of dark
+# blue. Clipping to the 2nd and 98th percentiles shows the structure instead of the
+# outlier
 
 # %% [markdown]
 # ### The same thing by hand
@@ -280,6 +212,8 @@ sc.pl.umap(cells, color=["condition", "timepoint_h", "Oct4", "GATA4"],
 # a scatter plot of two columns.
 
 # %%
+coords = cells.obsm["X_umap_identity"]
+
 fig, axes = panel_grid(4, ncols=2, size=(5.4, 4.6))
 
 s = axes[0].scatter(coords[:, 0], coords[:, 1], c=cells.obsm["X_pca"][:, 0],
@@ -326,159 +260,11 @@ fig.tight_layout()
 # **The shape is not stable.** Change the seed or `n_neighbors` and the picture rearranges
 # while the underlying data has not moved.
 
-# %%
-alt = cells.copy()
-sc.pp.neighbors(alt, n_neighbors=50, n_pcs=15, use_rep="X_pca", random_state=0)
-sc.tl.umap(alt, random_state=7)
-
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.6))
-for ax, (xy, label) in zip(axes, [(coords, "n_neighbors=15, seed 0"),
-                                  (alt.obsm["X_umap"], "n_neighbors=50, seed 7")]):
-    ax.scatter(xy[:, 0], xy[:, 1], c=cells.obs.timepoint_h.astype(int), cmap="viridis",
-               s=2, alpha=0.6)
-    ax.set(title=label, xticks=[], yticks=[])
-fig.tight_layout()
-
 # %% [markdown]
-# :::{warning}
-# **Same cells, same PCA, two different pictures.** Anything you can say about one and not
-# the other is a statement about UMAP, not about the biology.
+# ## 5 · Save the embedding
 #
-# Use a UMAP to *notice* things — a group that separates, a gradient worth chasing. Then
-# go and test the claim with numbers, at the well level.
-# :::
-
-# %% [markdown]
-# ### What it does preserve, for once: the population
-#
-# Every earlier warning in this section is about the method. This one is about the data, and
-# it goes the other way: these are **all** the control cells, not a sample of them. No
-# subsampling, no sketch, nothing over- or under-represented.
-#
-# That is unusual and worth noticing, because it is what lets you read a density on this
-# page as a real density. It stops being true the moment you leave the controls — 653,000
-# cells will not go through a neighbour graph, so
-# [Part 4](../../part4_final_solutions/intro.md) embeds a *sketch* of the plate and cannot
-# count anything on it.
-
-# %% [markdown]
-# ## 5 · What the picture actually says
-#
-# [Section 1](#choose-the-features-and-build-the-graph) already put a number on the map: the
-# two controls are interleaved (1.05× chance), timepoint is real (1.91×), and cells from one
-# well sit together more often than they should. This section finishes that last one, because
-# it is the finding that changes how you work — and because the first table overstated it.
-#
-# One thing to know before reading any of it.
-
-# %%
-pd.crosstab(cells.obs.condition.astype(str), cells.obs.row.astype(str))
-
-# %% [markdown]
-# :::{warning}
-# **The two controls do not share a single plate row.** Condition and row are perfectly
-# confounded here, so a difference between DMSO and PBS could equally be a difference between
-# the top and the bottom of the plate, and no analysis can separate them.
-#
-# That is a fact about how the plate was laid out, not about the code. It belongs *before*
-# the result rather than after it — it changes what a positive result would mean, and it
-# raises the value of a negative one.
-# :::
-
-# %% [markdown]
-# ### These labels nest, and a nested label borrows signal
-#
-# Both of the batch numbers are inflated, for the same reason. Every **well** has exactly one
-# timepoint, so part of the well signal is the timepoint signal wearing a different name. And
-# every **row** is a bag of wells, so part of the row signal is the well signal.
-#
-# Two arguments strip each of those out. `within` counts only pairs from the same block —
-# use it to separate a label from what it sits *inside*:
-
-# %%
-block = (cells.obs.condition.astype(str) + "_"
-         + cells.obs.timepoint_h.astype(str)).values
-
-pd.DataFrame({
-    "well, all pairs": neighbour_purity(cells, cells.obs.well.astype(str)),
-    "well, within condition × timepoint":
-        neighbour_purity(cells, cells.obs.well.astype(str), within=block),
-}).T[["observed", "expected", "ratio", "pairs"]].round(3)
-
-# %% [markdown]
-# `exclude` counts only pairs from *different* groups — use it to separate a label from what
-# sits inside **it**. Do the cells of one plate row group together at all, once you stop
-# counting cells that share a well?
-
-# %%
-pd.DataFrame({
-    "row, all pairs": neighbour_purity(cells, cells.obs.row.astype(str)),
-    "row, ignoring same-well pairs":
-        neighbour_purity(cells, cells.obs.row.astype(str),
-                                  within=block, exclude=cells.obs.well.astype(str)),
-}).T[["observed", "expected", "ratio", "pairs"]].round(3)
-
-# %% [markdown]
-# :::{important}
-# **Two findings, pointing in opposite directions.**
-#
-# **There is no plate-position effect.** Once same-well pairs are excluded, the row ratio
-# lands within a few per cent of 1 — observed and expected agree to two decimals. The
-# apparent row structure
-# was entirely inherited from the wells inside it. That also settles the confound flagged
-# above: rows carry no signal of their own, so DMSO and PBS sitting on different rows costs
-# nothing.
-#
-# **The well effect is real, and survives every control.** Cells from the same well still sit
-# together more often than chance *within a single condition and timepoint*, in two groups
-# that received no treatment at all. Nothing was done to these wells that was not done to the
-# others. What they share is a drop of medium, a position, a local cell density and one
-# imaging session — and that is enough.
-#
-# Note how far the number fell: about 2.2 on the 38-feature graph, and much less than that
-# here. Both are above 1, so the conclusion is the same — but the size of a batch effect is a
-# property of **the features you chose**, not of the plate alone. Quote it with the feature
-# set it came from.
-#
-# This is the replicate-unit argument arriving as a measurement rather than an assertion.
-# Cells within a well are **not** independent, and this is how far from independent they are.
-# :::
-
-# %% [markdown]
-# ### One contradiction worth holding on to
-#
-# The cells do not separate. Do the **wells**?
-
-# %%
-wells = (cells.to_df()
-         .groupby([cells.obs.condition.astype(str), cells.obs.timepoint_h.astype(int),
-                   cells.obs.well.astype(str)], observed=True).mean()
-         .rename_axis(["condition", "timepoint", "well"]).reset_index())
-names = [c for c in wells.columns if c not in ("condition", "timepoint", "well")]
-difference = (wells[wells.condition == "PBS"][names].mean()
-              - wells[wells.condition == "DMSO"][names].mean())
-
-print(f"  markers shifted by more than 1 control SD: {(difference.abs() > 1).sum()} of {len(names)}")
-print(f"  median |shift|: {difference.abs().median():.2f} control SDs")
-difference.reindex(difference.abs().sort_values(ascending=False).index).head(5).round(2)
-
-# %% [markdown]
-# So PBS and DMSO are **not** the same — several markers differ by well over a control
-# standard deviation, and the largest by nearly two.
-#
-# Both results are true at once, and the reason is worth internalising: a shift of two
-# control-well SDs is small next to the spread of single cells *within* a well. The
-# distributions overlap almost entirely, so no embedding or clustering will ever split them,
-# while a well-level comparison sees the shift immediately.
-#
-# **An embedding is not a detector.** "The groups do not separate on the UMAP" is not
-# evidence that they are the same, and never was.
-
-# %% [markdown]
-# ## 6 · Save the embedding
-#
-# `obsm["X_umap"]` and the graph in `obsp` both travel with the object. Chapters 08 and 09
-# reuse them rather than recomputing.
+# `obsm["X_umap"]` and both graphs in `obsp` travel with the object. Chapters 08, 09 and 10
+# reuse the `identity` graph rather than recomputing it.
 
 # %%
 cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
@@ -525,14 +311,6 @@ print(f"  uns  : {sorted(cells.uns)}")
 # sc.tl.umap(plate, random_state=0)
 # sc.pl.umap(plate, color=["timepoint_h", "Oct4"], s=6, frameon=False)
 # ```
-#
-# The broad arrangement survives — time and pluripotency organise both maps — which is the
-# reassuring part: the controls are not a strange corner of the dataset.
-#
-# What the plate map adds is regions the controls never reach, because sixteen of its
-# eighteen conditions were chosen to push the cells somewhere. Naming those regions is
-# Part 4's job, and doing it before you have run the methods here is how you end up
-# describing an artefact with confidence.
 # :::
 #
 # ### 3. Colour it by something that should mean nothing

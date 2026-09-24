@@ -19,6 +19,8 @@
 # you any relationship *between* them — a clustering returns groups, and a group has no
 # neighbours.
 #
+# If you need more help for this section scanpy has a really good guide explaining this method: here[https://scanpy.readthedocs.io/en/latest/tutorials/trajectories/paga-paul15.html]
+#
 # But the neighbour graph knows. Two clusters joined by thousands of edges are adjacent in
 # the data; two joined by none are not, whatever a UMAP puts next to what. **PAGA** —
 # partition-based graph abstraction — collapses the cell-level graph into a graph *between
@@ -26,9 +28,9 @@
 #
 # | | |
 # |---|---|
-# | **1** | Cluster finer than you want to name |
+# | **1** | Clusters finer than you would annotate |
 # | **2** | Abstract the graph |
-# | **3** | Read an edge honestly |
+# | **3** | Read an edge |
 # | **4** | What the topology says |
 # | **5** | Use it to lay out a UMAP |
 #
@@ -62,10 +64,10 @@ identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_nam
 
 print(f"{cells.n_obs:,} control cells")
 print(f"  states from chapter 08: {list(cells.obs.cell_state.cat.categories)}")
-print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
+print(f"  graph : {cells.obsp['identity_connectivities'].nnz:,} edges, from chapter 07")
 
 # %% [markdown]
-# ## 1 · Cluster finer than you want to name
+# ## 1 · Clusters finer than you would annotate
 #
 # Chapter 08 settled on resolution 0.1 because three clusters were all it could **name**.
 # That is the right resolution for an annotation and the wrong one for a topology: three
@@ -73,11 +75,14 @@ print(f"  graph : {cells.obsp['connectivities'].nnz:,} edges, from chapter 07")
 #
 # PAGA wants more nodes than you would ever put in a figure legend. The abstraction is what
 # makes them readable again.
+#
+# Here we will use cluster resolution 0.3 - to calculate PAGA however, you may even want finer clusters. Finer clusters will reveal better neighbourhood relationships.
 
 # %%
 for resolution in [0.1, 0.3]:
     sc.tl.leiden(cells, resolution=resolution, key_added=f"leiden_{resolution}",
-                 flavor="igraph", n_iterations=2, random_state=0)
+                 flavor="igraph", n_iterations=2, random_state=0,
+                 neighbors_key="identity")
     counts = cells.obs[f"leiden_{resolution}"].value_counts()
     print(f"  resolution {resolution}: {len(counts):2d} clusters, "
           f"smallest {counts.min():,} cells ({counts.min() / cells.n_obs:.2%})")
@@ -85,7 +90,7 @@ for resolution in [0.1, 0.3]:
 cells.obs["fine"] = cells.obs["leiden_0.3"]
 
 # %% [markdown]
-# Seven clusters, and the profile is what makes them worth having. Read it before the graph:
+# Eleven clusters. Read it before the graph:
 
 # %%
 profile = (pd.DataFrame(cells.obsm["X_identity"], columns=identity)
@@ -113,7 +118,7 @@ both.round(2).join(sizes.rename("cells"))
 #
 # Co-expression of a starting state and a destination state is what a **transition** looks
 # like in fixed cells. You cannot watch a cell change in a 4i experiment — every cell is
-# imaged once, dead — so a cell caught carrying both programmes is as close as the data
+# imaged once — so a cell caught carrying both programmes is as close as the data
 # comes to showing you the act.
 #
 # It is also a small minority of the cells, which is why the resolution mattered: at 0.1 it
@@ -128,16 +133,18 @@ both.round(2).join(sizes.rename("cells"))
 # be if edges were placed at random.
 
 # %%
-sc.tl.paga(cells, groups="fine")
+sc.tl.paga(cells, groups="fine", neighbors_key="identity")
 
 connectivity = pd.DataFrame(cells.uns["paga"]["connectivities"].toarray(),
                             index=profile.index, columns=profile.index)
 connectivity.round(3)
 
 # %% [markdown]
-# Drawing it needs a **threshold**, because almost every pair has some connectivity. Section
-# 3 is about choosing one; for now take a value that leaves the graph in one piece, and note
+# When drawing, the graph we can use a **threshold**, because almost every pair has some connectivity. Section
+# 3 chooses a threshold to cut the possible connectivities; here you can take a value that leaves the graph in one piece, and note
 # that you had to look at the numbers to find it.
+#
+# Below you have a function that allows you to check how many edges will be drawn at that threshold and in how many pieces the graph is divided.
 
 # %%
 def components(matrix, cut):
@@ -163,14 +170,21 @@ for cut in [0.05, 0.07, 0.10, 0.15]:
 
 THRESHOLD = 0.07
 
+# %% [markdown]
+# In this case, we choose 0.07 as the `THRESHOLD`. However, we have now divided the graph in two. 
+#
+# :::{note}
+# You can play here with the parameters to achieve a better graph: You can play with using higher resolution clusters and with lower thresholds to include more connectivities.
+# :::
+
 # %%
 sc.pl.paga(cells, threshold=THRESHOLD, frameon=False, fontsize=10,
            node_size_scale=1.5, edge_width_scale=0.8)
 
 # %% [markdown]
-# ## 3 · Read an edge honestly
+# ## 3 · Read an edge
 #
-# The number in that matrix is a **strength**, not a fact. Every pair of clusters gets one,
+# The number in that matrix is a **strength** of connectivity, not a fact. Every pair of clusters gets one,
 # and almost every one of them is greater than zero.
 
 # %%
@@ -195,105 +209,17 @@ fig.tight_layout()
 # :::{warning}
 # **The threshold is a choice, and here it is doing more work than anywhere else in the
 # course.** Drop it to 0.01 and the graph is nearly complete — every state connected to every
-# other, which is true and useless. Raise it to 0.10 and the component listing above shows
+# other, which is true and useless. Raise it to 0.15 and the component listing above shows
 # the graph breaking into three pieces, with the hypoblast cluster **alone**.
 #
-# Look at where its edges actually fall. The two strongest run to the co-expressing cluster
-# and to the SOX17-high one, and both sit just under 0.10 — so the single most interesting
-# feature of this graph is also the one closest to the cut. Move the threshold by two
-# hundredths and the route into hypoblast appears or vanishes.
+# Look at where its edges actually fall.
 #
 # There is no correct value. What is required is that you **say which one you used**, and
-# that the claim survives a reasonable change to it. This one does not survive 0.10, so the
-# honest report is the range: the route is present below about 0.08 and gone above it.
-#
-# The bar chart is the honest version of the picture: it shows there is no gap in the
-# distribution to cut at, which is exactly the thing a thresholded network diagram hides.
+# that the claim survives a reasonable change to it. A valid option is also to choose no threshold and present all edges.
 # :::
 
 # %% [markdown]
-# ## 4 · What the topology says
-#
-# Now read the graph against the profiles. Order the clusters by how pluripotent they are
-# and ask which ones the strong edges join.
-
-# %%
-summary = pd.DataFrame({
-    "cells": sizes,
-    "pluripotency": profile[["Oct4", "Nanog", "Sox2"]].mean(axis=1).round(2),
-    "hypoblast": profile[["GATA4", "SOX17"]].mean(axis=1).round(2),
-    "GATA3": profile["GATA3"].round(2),
-    "state (ch 08)": (pd.crosstab(cells.obs.fine, cells.obs.cell_state)
-                      .idxmax(axis=1)),
-})
-strong = {a: [] for a in connectivity.index}
-for a, b, w in pairs:
-    if w > THRESHOLD:
-        strong[a].append(f"{b} ({w:.2f})"); strong[b].append(f"{a} ({w:.2f})")
-summary["joined to"] = pd.Series({k: ", ".join(v) for k, v in strong.items()})
-summary.sort_values("pluripotency", ascending=False)
-
-# %% [markdown]
-# Read the `joined to` column down the table, in order of pluripotency. Pluripotency sits at
-# the top and falls away along two different routes, and the ends of those routes are the two
-# differentiated states:
-#
-# ```text
-#                          ┌──  GATA3-high (trophectoderm-like)
-#   pluripotent core  ─────┤
-#                          └──  co-expressing  ──┐
-#                                                ├──  hypoblast
-#                             SOX17-high  ───────┘
-# ```
-#
-# The **co-expressing cluster** is the one to stop on. It carries pluripotency *and* GATA4,
-# SOX17 and PDGFRa at once, it sits between the pluripotent core and the hypoblast cluster,
-# and it is a few per cent of the cells. Under the three-state annotation of
-# [chapter 08](08_cell_type_annotation.ipynb) it was filed as `Pluripotent` — the nearest of
-# three names — and the co-expression was invisible.
-#
-# Co-expression of a starting state and a destination state is what a **transition** looks
-# like in fixed cells. You cannot watch a cell change in a 4i experiment — every cell is
-# imaged once, dead — so a cell caught carrying both programmes is as close as the data comes
-# to showing you the act.
-#
-# :::{caution}
-# **A path is not a trajectory.** PAGA reports which clusters are adjacent in the data, not
-# which turns into which, and it has no notion of direction at all. Every arrow you might
-# want to draw on this picture comes from somewhere else — the timepoints, below, or the
-# biology you brought with you.
-# :::
-
-# %% [markdown]
-# ### The timepoints are the check
-#
-# The graph was built from marker levels alone and never saw the clock. If its shape is
-# real, the clusters it puts at the far end should be the ones that fill up late.
-
-# %%
-composition = pd.crosstab(cells.obs.fine, cells.obs.timepoint_h.astype(int),
-                          normalize="index").mul(100).round(1)
-composition.join(summary[["cells", "state (ch 08)"]])
-
-# %% [markdown]
-# The hypoblast cluster is overwhelmingly a late one — a few tenths of a percent of it comes
-# from 36 hours, three quarters from 84. Nothing told PAGA that. It also holds for the
-# co-expressing cluster, which is likewise late-shifted, as a state on the way to hypoblast
-# has to be.
-#
-# :::{tip}
-# **This is the shape to remember, because Part 4 measures against it.** Untreated cells
-# leave the pluripotent core along more than one route, and one of those routes passes
-# through a small population carrying both programmes at once.
-#
-# A compound can change that picture in ways an abundance measurement would miss entirely:
-# it can empty the bridge while leaving both endpoints intact, or cut one route and leave
-# the other. Counting how many cells are in each state cannot tell those apart. The topology
-# can, and [Part 4](../../part4_final_solutions/intro.md) asks it to.
-# :::
-
-# %% [markdown]
-# ## 5 · Use it to lay out a UMAP
+# ## 4 · Use it to lay out a UMAP
 #
 # A UMAP starts from a random initialisation, which is why chapter 07's two runs came out
 # rearranged. Starting it from the PAGA layout instead makes the global arrangement
@@ -301,15 +227,28 @@ composition.join(summary[["cells", "state (ch 08)"]])
 # from connectivity.
 
 # %%
-sc.tl.paga(cells, groups="fine")          # on the 38-marker graph, which the UMAP uses
+sc.tl.paga(cells, groups="fine", neighbors_key="identity")   # the graph the UMAP uses
 sc.pl.paga(cells, plot=False)             # computes uns['paga']['pos'] -- required below
-sc.tl.umap(cells, init_pos="paga", random_state=0)
+sc.tl.umap(cells, init_pos="paga", random_state=0, neighbors_key="identity")
 
 sc.pl.umap(cells, color=["fine", "cell_state", "timepoint_h"],
            ncols=3, s=6, frameon=False)
 
+# %% [markdown]
+# ### The same graph, force-directed
+#
+# `sc.tl.draw_graph` starts from those same PAGA positions but keeps going: connected
+# cells pull together, everything else pushes apart, and the layout settles where those
+# forces balance. It spreads out trajectories that UMAP packs into blobs, which is why it
+# is the usual companion to a PAGA graph. The same caveat applies though — the distance
+# between two clusters that ended up far apart still means nothing.
+#
+
 # %%
-sc.tl.draw_graph(cells, init_pos="paga")
+sc.tl.draw_graph(cells, init_pos="paga", neighbors_key="identity", maxiter=150)
+
+sc.pl.draw_graph(cells, color=["fine", "cell_state", "timepoint_h"],
+                 ncols=3, s=6, frameon=False)
 
 # %% [markdown]
 # :::{note}
@@ -335,92 +274,90 @@ print(f"  uns : paga connectivities for {len(connectivity)} clusters")
 # %% [markdown]
 # ---
 #
-# ## Exercises
+# ## Summary
 #
-# ### 1. Does the topology survive the resolution?
+# ### 1. What is PAGA?
 #
-# Rebuild the PAGA graph at resolutions 0.2, 0.3 and 0.6. Does a cluster co-expressing
-# pluripotency and hypoblast markers appear every time? Does it stay on the route between
-# the two endpoints?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
+# **Partition-based graph abstraction** takes the neighbour graph you already have and
+# coarse-grains it by a partition of the cells — here, the Leiden clusters. What comes out is
+# one node per cluster and, between them, an edge weight that scanpy calls *confidence in the
+# presence of a connection*.
 #
-# ```python
-# for resolution in [0.2, 0.3, 0.6]:
-#     key = f"r{resolution}"
-#     sc.tl.leiden(cells, resolution=resolution, key_added=key,
-#                  flavor="igraph", n_iterations=2, random_state=0)
-#     prof = (pd.DataFrame(cells.obsm["X_identity"], columns=identity)
-#             .groupby(cells.obs[key].astype(str).values, observed=True).mean())
-#     mixed = prof[(prof[["Oct4", "Nanog", "Sox2"]].mean(axis=1) > 0.3)
-#                  & (prof[["GATA4", "SOX17"]].mean(axis=1) > 0.5)]
-#     print(f"{resolution}: {len(prof)} clusters, {len(mixed)} co-expressing")
-# ```
+# That number is worth pinning down, because it is the easiest thing in the chapter to
+# over-read. It is the **ratio of the connections actually seen between two clusters to the
+# number expected** if the same cells had been wired up at random. Well above 1 means two
+# clusters touch more than chance would give you; near 0 means they barely touch. There is
+# deliberately **no p-value**: scanpy's own documentation notes that this null model
+# overestimates the expected value badly enough that a p-value from it would mislead.
 #
-# A structure that appears at one resolution and nowhere else is a property of the
-# clustering. One that appears across a range — sometimes split into two clusters, sometimes
-# merged — is a property of the data, and that is what you report, with the range.
+# So PAGA does not tell you your clusters are right. It tells you how strongly they touch,
+# *given the graph you built* — which is why the sections above spend their time on the graph
+# and on the threshold rather than on the picture.
+#
+# ### 2. Steps to calculate PAGA
+#
+# 1. **A neighbour graph** — `sc.pp.neighbors()`, usually computed on a PCA
+#    (`sc.pp.pca()`) so that distances are taken in a few informative dimensions.
+# 2. **A partition of it** — `sc.tl.leiden()`, or `sc.tl.louvain()`, deliberately finer than
+#    you would annotate by hand.
+# 3. **The abstraction** — `sc.tl.paga()`. The only step that actually computes PAGA; it
+#    writes the cluster-by-cluster matrix into `uns["paga"]["connectivities"]`.
+# 4. **Draw it** — `sc.pl.paga()`. It plots the graph, applies `threshold=` to hide weak
+#    edges, and as a side effect computes the node positions in `uns["paga"]["pos"]`.
+# 5. **Optionally, re-lay out the cells** — `sc.tl.umap(init_pos="paga")` or
+#    `sc.tl.draw_graph(init_pos="paga")`, then `sc.pl.umap()` / `sc.pl.draw_graph()`.
+#
+# :::{note}
+# **Steps 1 and 2 happened before this chapter.** [Chapter 07](07_umap.ipynb) built the
+# neighbour graph on the eight identity markers, with `use_rep="X_identity"` rather than on a
+# PCA, and [chapter 08](08_cell_type_annotation.ipynb) clustered it. Nothing here touches PCA
+# — we start at step 3.
 # :::
-
-# %% [markdown]
-# ### 2. Rebuild it on a panel that should not work
 #
-# The graph so far uses eight lineage markers. Build the neighbour graph and the PAGA on the
-# **organelle** panel instead. Do you still get a route between pluripotent and hypoblast?
-# Should you?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
+# ### 3. Ways of representing PAGA
 #
-# ```python
-# organelles = [m for m in cells.uns["panels"]["organelles"] if m in set(cells.var_names)]
-# cells.obsm["X_organelles"] = np.asarray(cells[:, organelles].X)
-# sc.pp.neighbors(cells, n_neighbors=15, use_rep="X_organelles",
-#                 key_added="org", random_state=0)
-# sc.tl.leiden(cells, resolution=0.3, key_added="org_fine", neighbors_key="org",
-#              flavor="igraph", n_iterations=2, random_state=0)
-# sc.tl.paga(cells, groups="org_fine", neighbors_key="org")
-# print(pd.crosstab(cells.obs.org_fine, cells.obs.cell_state, normalize="index").round(2))
-# ```
+# | | |
+# |---|---|
+# | `sc.pl.paga` | The abstracted graph itself: one node per cluster, edge width by connectivity, `threshold` hiding the weak ones. |
+# | `sc.pl.paga_compare` | The same graph side by side with the single-cell embedding, under one colouring. |
+# | `sc.pl.paga_path` | A heatmap of chosen markers along a path of clusters — how they change as you walk a branch. |
+# | `sc.pl.paga_adjacency` | The connectivity matrix drawn as an image. |
+# | `init_pos="paga"` | Not a picture of PAGA at all: an ordinary UMAP or force-directed layout of the cells, whose *global* arrangement is inherited from the abstracted graph. |
 #
-# You will still get clusters and still get a connected graph, because PAGA always returns
-# one. The question is whether the clusters correspond to anything: cross-tabulate them
-# against `cell_state` and see whether organelle markers separate lineages at all.
+# You can also just read the matrix. `cells.uns["paga"]["connectivities"]` is a sparse
+# cluster x cluster array — which is exactly what section 2 above turns into a `DataFrame`.
 #
-# The lesson is the one from chapter 09's third section in a different form. The method does
-# not check whether your features answer your question — only you can do that, and the
-# cross-tabulation is how.
+# Two practical notes on `sc.pl.paga_path`: it annotates with `dpt_pseudotime` by default, so
+# it needs the pseudotime that [chapter 10](10_diffusion_map.ipynb) computes; and it needs
+# `use_raw=False` on this object, because the measured values live in `layers["raw"]` rather
+# than in `.raw`.
+#
+# ### 4. Ways of calculating PAGA
+#
+# A PAGA graph is *entirely* determined by two choices made before `sc.tl.paga` ever runs —
+# **what the neighbour graph was built on**, and **which partition you hand it**. Change
+# either and the same cells give you a different topology:
+#
+# - **The representation.** A PCA is the default. A **diffusion map** is the quieter option:
+#   computing distances in a few diffusion components, as scanpy's guide puts it, "amounts to
+#   denoising the graph – we just take a few of the first spectral components. It's very
+#   similar to denoising a data matrix using PCA." Or a chosen marker panel, as here.
+# - **`n_neighbors`.** More neighbours means a smoother graph, more edges, and fewer separate
+#   components.
+# - **The partition.** Leiden or Louvain, and at which resolution. A finer partition gives
+#   more nodes and a more detailed, noisier abstraction.
+#
+# :::{important}
+# Scanpy's guide is explicit that the diffusion-map step is optional: "This is *not* a
+# necessary step, neither for PAGA, nor clustering, nor pseudotime estimation." Treat it as
+# one graph among several rather than as the correct one.
 # :::
+#
+# `threshold` belongs to none of these. It changes the picture at plotting time and leaves the
+# numbers in `uns["paga"]` untouched, which is why section 3 could sweep it without
+# recomputing anything.
 
-# %% [markdown]
-# ### 3. Move a threshold until the story changes
-#
-# Find the value at which the hypoblast cluster detaches from the rest of the graph. How far
-# is it from the one this chapter used?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# for cut in [0.05, 0.08, 0.10, 0.15, 0.20, 0.25]:
-#     kept = [(a, b) for a, b, w in pairs if w > cut]
-#     print(f"threshold {cut:.2f}: {len(kept):2d} edges")
-# ```
-#
-# Then draw two of them and see which claims survive.
-#
-# The point of the exercise is to make the fragility concrete before you rely on it. If your
-# conclusion needs the threshold to be 0.07 rather than 0.09, the conclusion is about the
-# threshold. Report the range over which it holds, or find a claim that does not need one —
-# an edge weight is a number and can be compared between conditions without being cut at
-# all, which is what Part 4 does.
-# :::
-
-# %% [markdown]
+# %% [markdown] editable=true slideshow={"slide_type": ""}
 # ---
 #
 # **Next:** [10 · Diffusion maps](10_diffusion_map.ipynb).

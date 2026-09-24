@@ -1,6 +1,8 @@
 # Setup
 
-Do these three things, in this order, **before the first session**.
+Do these three things, in this order, **before 2 October** — that is the first session
+where we work on Euler. Try it on your own; whatever did not work, we sort out together
+in the room that morning.
 
 1. **[Euler and JupyterHub](euler_jupyterhub.md)** — get onto the cluster and start a
    notebook server in your browser.

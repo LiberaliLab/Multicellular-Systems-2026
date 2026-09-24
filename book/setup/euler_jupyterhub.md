@@ -9,7 +9,7 @@ memory than a laptop has.
 Every ETH member with a nethz account can use Euler, but the account has to be activated
 once. To do this follow to the next steps.
 
-If you are not at ETH, or your account is not active by the first session, tell us
+If you are not at ETH, or your account is not active by **2 October**, tell us
 early — this is the one step we cannot fix in the room.
 
 Some extra information can be found at the ETH Scientific Computing instructions at
