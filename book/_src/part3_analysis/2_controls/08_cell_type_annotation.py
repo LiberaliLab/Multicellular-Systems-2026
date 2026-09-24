@@ -49,7 +49,7 @@ plt.rcParams.update({          # the house style, no package needed
 pd.set_option("display.width", 140)
 
 # The tables live here on Euler. Change this line if your copy is elsewhere.
-DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+DATA = Path("/cluster/project/mcsliberali/file_outputs")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 print(f"{cells.n_obs:,} control cells x {cells.n_vars} markers")
@@ -62,6 +62,16 @@ def transfer_labels(source, labels, target, k=15):
     return model.predict(target)
 
 
+
+# %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
 
 # %% [markdown]
 # ## 1 · The graph you already have
@@ -184,18 +194,31 @@ check.sort_index()
 #
 # Name from the profile, with the thresholds written down. Someone reading this should be
 # able to disagree with a specific number rather than with your judgement in general.
+#
+# **Three positive tests, then a leftover.** Epiblast, hypoblast and trophectoderm-like each
+# have to earn their name from a marker set: pluripotency (Oct4, Nanog, Sox2), primitive
+# endoderm (GATA4, SOX17), and GATA3 for the TE-like cells. A cluster that passes none of the
+# three is called **Progenitors** — not because we have shown it to be a progenitor, but
+# because it is a real cluster that none of the three lineage definitions claims. Naming it
+# honestly keeps it visible; folding it into the nearest lineage would not.
+#
+# The order matters: the first test that matches wins, so a cluster high in *both*
+# pluripotency and endoderm markers is filed as `Epiblast`. Chapter 09 comes back to exactly
+# that cluster.
 
 # %%
 def name_cluster(row, size_fraction):
     if size_fraction < 0.005:
         return "artefact"
     if row[["Oct4", "Nanog", "Sox2"]].mean() > 0.3:
-        return "Pluripotent"
+        return "Epiblast"
     if row[["GATA4", "SOX17"]].mean() > 0.5:
         return "Hypoblast"
-    return "TE-like"
+    if row["GATA3"] > 0.3:
+        return "TE-like"
+    return "Progenitors"
 
-STATES = ["Pluripotent", "TE-like", "Hypoblast", "artefact"]
+STATES = ["Epiblast", "Progenitors", "Hypoblast", "TE-like", "artefact"]
 
 names = {cluster: name_cluster(profile.loc[cluster], sizes[cluster] / cells.n_obs)
          for cluster in profile.index}
@@ -270,7 +293,8 @@ print(pd.crosstab(pd.Series(labels[test], name="annotated"),
 # ones, which contribute least to the average.
 
 # %%
-full = sc.read_h5ad(DATA / "mcs2026_intensity.h5ad")
+DATA_public = Path("/cluster/project/mcsliberali/data_mcs_2026")
+full = sc.read_h5ad(DATA_public / "mcs2026_intensity.h5ad")
 full.obs["cell_state"] = pd.Categorical(
     transfer_labels(space, labels, np.asarray(full[:, identity].X)),
     categories=assigned,
@@ -285,7 +309,7 @@ pd.DataFrame({
 # :::{important}
 # **The two columns are close, and the gap is the whole of Part 4.**
 #
-# Pluripotent and TE-like barely move. Hypoblast is a couple of points lower across the
+# Epiblast and TE-like barely move. Hypoblast is a couple of points lower across the
 # plate than in the controls — which says that, taken together, the sixteen compounds
 # suppress it slightly more often than they promote it. *Which* compounds, and by how much,
 # is not visible here and is not supposed to be.
@@ -332,7 +356,7 @@ print(f"  intensity : {full.n_obs:,} cells, obs['cell_state'] projected from the
 # ```
 #
 # At the higher resolutions several clusters differ by *degree* rather than by which
-# markers are on — a slightly brighter version of the pluripotent cluster is not a lineage.
+# markers are on — a slightly brighter version of the epiblast cluster is not a lineage.
 # That is the sign you have gone past what seven markers can support.
 #
 # The honest report names the resolution you used, and says that the conclusion holds at

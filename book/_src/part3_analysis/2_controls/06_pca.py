@@ -69,6 +69,16 @@ print(f"  conditions: {sorted(cells.obs.condition.astype(str).unique())}")
 print(f"  wells: {cells.obs.well.nunique()}   units: {cells.uns['provenance']['units']}")
 
 # %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
+
+# %% [markdown]
 # ## 1 · Fit the PCA
 #
 # What goes in is `X`: one row per cell, one column per marker, already centred and scaled
@@ -242,7 +252,9 @@ pd.DataFrame({
 # %%
 cells.uns["pca"]["features"] = "the 38 normalised markers"
 print("  obsm:", list(cells.obsm), " varm:", list(cells.varm))
-cells.write_h5ad(DATA / "mcs2026_controls_downstream.h5ad", compression="gzip")
+
+DATA_OUT = Path("/cluster/project/mcsliberali/file_outputs")
+cells.write_h5ad(DATA_OUT / "mcs2026_controls_downstream.h5ad", compression="gzip")
 cells
 
 # %% [markdown]

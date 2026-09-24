@@ -57,7 +57,7 @@ plt.rcParams.update({          # the house style, no package needed
 pd.set_option("display.width", 140)
 
 # The tables live here on Euler. Change this line if your copy is elsewhere.
-DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+DATA = Path("/cluster/project/mcsliberali/file_outputs")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_names)]
@@ -65,6 +65,16 @@ identity = [m for m in cells.uns["panels"]["identity"] if m in set(cells.var_nam
 print(f"{cells.n_obs:,} control cells")
 print(f"  states from chapter 08: {list(cells.obs.cell_state.cat.categories)}")
 print(f"  graph : {cells.obsp['identity_connectivities'].nnz:,} edges, from chapter 07")
+
+# %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
 
 # %% [markdown]
 # ## 1 · Clusters finer than you would annotate
@@ -100,7 +110,7 @@ sizes = cells.obs.fine.value_counts()
 profile.round(2).join(sizes.rename("cells"))
 
 # %% [markdown]
-# Most of these are versions of the three named states — several flavours of pluripotent,
+# Most of these are versions of the three named states — several flavours of epiblast,
 # one strongly GATA3, one strongly GATA4/SOX17. One of them is not.
 
 # %%
@@ -112,9 +122,9 @@ both.round(2).join(sizes.rename("cells"))
 # %% [markdown]
 # :::{important}
 # **A cluster that is high in both.** Oct4, Nanog and Sox2 up — and GATA4 and SOX17 up as
-# well, in the same cells. Under the three-state annotation these were filed as
-# `Pluripotent`, because that is the closest of three names, and the co-expression was
-# invisible.
+# well, in the same cells. Under the annotation in chapter 08 these are filed as
+# `Epiblast`, because that is the first test that matches, and the co-expression is
+# invisible in the label.
 #
 # Co-expression of a starting state and a destination state is what a **transition** looks
 # like in fixed cells. You cannot watch a cell change in a 4i experiment — every cell is

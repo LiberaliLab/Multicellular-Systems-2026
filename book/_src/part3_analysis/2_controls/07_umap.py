@@ -61,13 +61,23 @@ def panel_grid(n, *, ncols=3, size=(3.6, 3.0)):
 pd.set_option("display.width", 140)
 
 # The tables live here on Euler. Change this line if your copy is elsewhere.
-DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
+DATA = Path("/cluster/project/mcsliberali/file_outputs")
 
 cells = sc.read_h5ad(DATA / "mcs2026_controls_downstream.h5ad")
 print(f"{cells.n_obs:,} cells x {cells.n_vars} markers")
 print(f"  conditions: {sorted(cells.obs.condition.astype(str).unique())}, "
       f"{cells.obs.well.nunique()} wells")
 print(f"  obsm: {list(cells.obsm)}")
+
+# %% [markdown]
+# :::{warning}
+# **Where this chapter writes is the course's folder, not yours.** These chapters were run to
+# produce the figures you see here, and from chapter 06 onwards they write into
+# `/cluster/project/mcsliberali/file_outputs`, which you can neither see nor write to.
+#
+# Load from `data_mcs_2026` once, then save to and read from a folder of your own — see
+# [Working on Euler](../../setup/working_on_euler.md) for the pattern and the lines to change.
+# :::
 
 # %% [markdown]
 # ## 1 · Choose the features, and build the graph

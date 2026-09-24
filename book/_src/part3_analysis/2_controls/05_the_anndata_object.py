@@ -46,6 +46,25 @@ DATA = Path("/cluster/project/mcsliberali/data_mcs_2026")
 
 
 # %% [markdown]
+# :::{warning}
+# **Three folders, and only one of them is yours.**
+#
+# - `data_mcs_2026` — shared, **read-only**, and the only one you can see. This is what you
+#   load at the start.
+# - `file_outputs` — the course's own run folder, where the outputs printed in these pages
+#   were produced. You have no access to it, but you will see it in the `DATA` line at the
+#   top of chapters 06 to 10. **Replace that path with your own.**
+# - `~/mcs2026` — yours. Everything you make goes here.
+#
+# It matters from the next chapter on, because 06 to 10 form a chain: each opens an `.h5ad`,
+# adds something, and writes it back. Load from `data_mcs_2026` once, save into your own
+# folder, and read from your own folder after that.
+#
+# [Working on Euler](../../setup/working_on_euler.md) has the pattern and the `$HOME` quota
+# you need to respect.
+# :::
+
+# %% [markdown]
 # ## 1 · Open it, and print the slots
 #
 # The first cell of every notebook you write, before you touch anything. Someone else made
@@ -242,6 +261,22 @@ pd.DataFrame([
 # print(cells.obs.dtypes)            # what will need casting
 # ```
 #
+
+# %% [markdown]
+# ---
+#
+# ## Saving what you make
+#
+# Two kinds of plot in this course, and they save differently — worth knowing now rather than
+# the week you need figures for a presentation.
+#
+# - **Figures you built yourself**, from `plt.subplots`, have a `fig`: `fig.savefig(path)`.
+#   300 dpi and a tight bounding box are already set at the top of every chapter.
+# - **Scanpy's plots** draw *and close* the figure themselves, so there is no `fig` to catch.
+#   Pass `save="_name.png"` instead, and know that scanpy writes into `sc.settings.figdir`,
+#   prepends the function name, and gives you a **PDF** if you leave the extension off.
+#
+# [Working on Euler](../../setup/working_on_euler.md) has both, with the gotchas spelled out.
 
 # %% [markdown]
 # ---

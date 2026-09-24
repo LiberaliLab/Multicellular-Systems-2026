@@ -13,6 +13,7 @@ parts:
           - file: setup/euler_jupyterhub
           - file: setup/python_environment
           - file: setup/data
+          - file: setup/working_on_euler
 
   - chapters:
       - file: part1_omezarr/intro
