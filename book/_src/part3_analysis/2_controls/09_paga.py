@@ -100,7 +100,7 @@ sizes = cells.obs.fine.value_counts()
 profile.round(2).join(sizes.rename("cells"))
 
 # %% [markdown]
-# Most of these are versions of the three named states — several flavours of pluripotent,
+# Most of these are versions of the three named states — several flavours of epiblast,
 # one strongly GATA3, one strongly GATA4/SOX17. One of them is not.
 
 # %%
@@ -112,9 +112,9 @@ both.round(2).join(sizes.rename("cells"))
 # %% [markdown]
 # :::{important}
 # **A cluster that is high in both.** Oct4, Nanog and Sox2 up — and GATA4 and SOX17 up as
-# well, in the same cells. Under the three-state annotation these were filed as
-# `Pluripotent`, because that is the closest of three names, and the co-expression was
-# invisible.
+# well, in the same cells. Under the annotation in chapter 08 these are filed as
+# `Epiblast`, because that is the first test that matches, and the co-expression is
+# invisible in the label.
 #
 # Co-expression of a starting state and a destination state is what a **transition** looks
 # like in fixed cells. You cannot watch a cell change in a 4i experiment — every cell is

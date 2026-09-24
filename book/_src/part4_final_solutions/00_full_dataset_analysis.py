@@ -694,7 +694,7 @@ proportions.head()
 # Before any compound: does the culture do what it is supposed to?
 
 # %%
-by_time = proportions.groupby("timepoint")[["Pluripotent", "TE-like", "Hypoblast"]].mean()
+by_time = proportions.groupby("timepoint")[["Epiblast", "Progenitors", "Hypoblast", "TE-like"]].mean()
 
 fig, ax = plt.subplots(figsize=(6.4, 3.8))
 for column in by_time.columns:

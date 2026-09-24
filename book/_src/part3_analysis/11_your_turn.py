@@ -218,6 +218,13 @@ compare_to_control(wells, top.marker, top.condition)
 # Axis labels, units, and **every replicate visible**. Three points and a mean say honestly
 # how much evidence there is; a bar with an error bar computed over 40,000 cells would look
 # far more convincing and would be describing something else.
+#
+# ```{note}
+# **Getting it out of the notebook.** `fig.savefig(path)` for a figure you built yourself;
+# `save="_name.png"` for anything drawn by `sc.pl.*`, which closes its own figure and hands
+# you nothing. [Working on Euler](../setup/working_on_euler.md) has both, and the three ways
+# `save=` surprises people.
+# ```
 
 # %%
 marker, condition = top.marker, top.condition
@@ -239,6 +246,54 @@ ax.set(xticks=[0, 1], xticklabels=["DMSO", condition[:18]],
        title=f"{marker}: every point is one well")
 ax.legend(title="fixed at", fontsize=8)
 fig.tight_layout()
+
+# %% [markdown]
+# ---
+#
+# ## 6 · Go past the template
+#
+# The five steps above get you one marker, one condition, one test. That is a complete
+# analysis and it is not yet a project. Three directions, each of which the chapters have
+# already given you the machinery for:
+#
+# ### Which markers does your condition actually move?
+#
+# Step 4 tested one. Do it for **every marker in your panel**, at every timepoint, and rank
+# them. The question stops being "is this significant" and becomes *which* readouts move,
+# by how much, and in what order — which is a much harder thing to get by accident.
+#
+# Watch the multiple testing: 38 markers × 4 timepoints is 152 tests, and at p < 0.05 you
+# expect seven to look real on noise alone. Say how many you ran.
+#
+# ### Does it change the composition, or the cells?
+#
+# A condition can act in two quite different ways, and they need different evidence:
+#
+# - **The mix changes.** The same states are present, in different proportions — more
+#   hypoblast, less epiblast. Test this on **cell-state proportions per well**, using the
+#   labels from [08](2_controls/08_cell_type_annotation.ipynb).
+# - **The cells change.** The proportions hold, but the cells within a state look different —
+#   a marker shifted inside the epiblast cells.
+#
+# Both can be true at once, and a marker mean over all cells cannot tell them apart: a
+# population-level shift in a marker is exactly what you would see if the *proportions* moved
+# and no individual cell changed at all. Splitting by `cell_state` before you compare is what
+# separates them.
+#
+# ### Does the answer survive the parameters you chose?
+#
+# Every chapter in Stage 2 turned on a number somebody picked:
+#
+# | chapter | the choice | what to try |
+# |---|---|---|
+# | 07 | `n_neighbors` on the graph | 10 and 30 as well as 15 |
+# | 08 | the Leiden `resolution`, and the naming thresholds | the neighbouring resolutions; and a different cut for GATA3 |
+# | 09 | the PAGA `threshold` | the value where your topology changes |
+# | 10 | the root cell | a different epiblast cell, or a deliberately wrong one |
+#
+# **Re-running with a neighbouring value and getting the same answer is a result worth
+# reporting.** Getting a different one is a more important result, and the honest report says
+# so rather than quoting whichever run looked best.
 
 # %% [markdown]
 # ## Before you present

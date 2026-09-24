@@ -24,7 +24,7 @@
 # clusters to name, a diffusion map gives you an axis to order cells along.
 #
 # [Chapter 09](09_paga.ipynb) has already drawn the shape this axis is trying to flatten:
-# two routes out of the pluripotent core, not one. Keep that in mind for section 5, where
+# two routes out of the epiblast core, not one. Keep that in mind for section 5, where
 # the ordering comes out clean and the correlation with real time does not.
 #
 # | | |
@@ -35,6 +35,13 @@
 # | **4** | Pseudotime, and the root cell that determines it |
 # | **5** | Check it before you believe it |
 # | **6** | Does the axis describe the rest of the plate? |
+#
+#
+# A more complex explanation of diffusion maps and what is happening behind the functions we use: 
+#
+# A diffusion map turns the kNN graph (precalculated neighbourhoods) into a Markov transition matrix (the probability of a random walk hopping from one cell to another) and eigendecomposes it, so each diffusion component (DC) is one eigenvector of that matrix.
+#
+# A cell's value in DCk is its coordinate along that eigenvector: cells with similar values are well connected by short random walks, so DCs often trace continuous trajectories or separate branches.
 
 # %%
 from math import comb
@@ -77,14 +84,24 @@ print(f"  states: {list(cells.obs.cell_state.cat.categories)}")
 # ## 1 · Compute it, and read the spectrum
 #
 # No new distance calculation: a diffusion map is computed **from a neighbour graph you
-# already have** — the one [chapter 07](07_umap.ipynb) built on the eight identity markers.
-# Section 3 builds the alternative and shows how much the choice decides.
+# already have** — in this case the one [chapter 07](07_umap.ipynb) built on the eight identity markers `neighbors_key="identity"`. However, we also calculate the alternative using the 38 markers in `neighbors_key="fullintensity"`.
+
+# %%
+cells
+
+# %% [markdown]
+# Now that we re-checked the composition of the object we can run the diffmap calculations and look at the eigenvalues for each DC
 
 # %%
 sc.tl.diffmap(cells, n_comps=15, neighbors_key="identity")
 print(f"  X_diffmap: {cells.obsm['X_diffmap'].shape}")
 
-evals = pd.Series(cells.uns["diffmap_evals"], index=[f"DC{i}" for i in range(15)])
+# Move the results of diffmap to a labelled variable - have to do this since there is no key_added argument for this function 
+cells.obsm["X_diffmap_identity"] = cells.obsm.pop("X_diffmap")
+cells.uns["diffmap_identity_evals"] = cells.uns.pop("diffmap_evals")
+
+
+evals = pd.Series(cells.uns["diffmap_identity_evals"], index=[f"DC{i}" for i in range(15)])
 evals.round(4).head(8)
 
 # %% [markdown]
@@ -94,9 +111,11 @@ evals.round(4).head(8)
 # most common mistake with diffusion maps, and it produces a plot with one axis that is
 # pure noise.
 #
-# What you want from the rest is a **gap**: a few eigenvalues clearly above the others,
-# after which they flatten. The number above the gap is the number of directions worth
-# looking at.
+# :::{note}
+# This DC0 = 1.000 is also what I refer to later as the bug inside scanpy. This causes all diffmap graphs to look flat and without changes in the first dimension.
+# :::
+#
+# The eigenvalues (adata.uns['diffmap_evals']) say how slowly each component fades as diffusion proceeds
 
 # %%
 fig, ax = plt.subplots(figsize=(6.2, 3.4))
@@ -113,34 +132,70 @@ print(f"  DC2 - DC3 gap: {evals.iloc[2] - evals.iloc[3]:.4f}")
 
 # %% [markdown]
 # :::{important}
-# **There is no gap here, and that is information.** The eigenvalues slide down from 0.99
-# by thousandths. No small number of components stands out, which says the data is one
-# continuum rather than a few well-separated branches.
+# **The eigenvalues decrease smoothly, and that tells us something.**
 #
-# Report that, rather than picking a number of components anyway. A flat spectrum means
-# "DC1 and DC2 are the two slowest directions", not "there are exactly two things here" —
-# and any claim of the second kind needs a gap to stand on.
+# A diffusion map imagines a walker hopping from cell to cell, preferring to step to cells
+# with similar expression profiles. Each diffusion component (DC) describes one pattern in
+# where this walker tends to wander, and its eigenvalue says how long that pattern survives
+# as the walk goes on. Values close to 1 mean large-scale structure that dominates the data;
+# lower values mean finer, more local detail.
+#
+# If the data contained a few clearly separate groups, the walker would tend to stay trapped
+# inside each one, rarely crossing to another. That would show up as a few eigenvalues very
+# close to 1, followed by a sharp drop to the rest. This drop is called an eigengap.
+#
+# Here there is no such gap. The eigenvalues start at about 0.99 and shrink by only
+# thousandths from one component to the next, so no small set of components stands out.
+# This suggests the cells form one continuous landscape with gradual transitions, rather
+# than a few distinct branches. It also means the eigenvalues alone cannot tell us how many
+# DCs are worth keeping, so that choice has to come from looking at the components
+# themselves.
 # :::
+
+# %% [markdown]
+# The two cases side by side, on data simple enough to see them:
+#
+# ```{image} ../../images/diffmap_eigengap.png
+# :alt: Left, three separate clusters: a walker started in one fills that cluster and never escapes, and the spectrum shows three eigenvalues at 1 then a sharp drop, the eigengap. Right, one continuous manifold: the walker keeps drifting along it and the eigenvalues decline slowly and evenly, with no gap.
+# :width: 100%
+# ```
+#
+# **Left** is what separate groups look like: the walker starts at the star and fills its own
+# group, but never crosses to another, so three eigenvalues sit at 1 and then the spectrum
+# falls off a cliff. **Right** is a continuum: nothing stops the walker drifting along it, so
+# no small set of components dominates and the eigenvalues slide down evenly.
+#
+# Our spectrum above is the right-hand case.
 
 # %% [markdown]
 # ## 2 · Look at the components
 
+# %% [markdown]
+# To do this, we actually cannot simply take the `sc.pl.diffmap` function, because it has the bug we previously described in which we actually plot DC0 vs DC1, instead of DC1 vs DC2, you can see how such a graph would look here: https://scanpy.readthedocs.io/en/stable/api/generated/scanpy.pl.diffmap.html
+#
+# Instead we will use a custom variation by giving the data to `sc.pl.embedding`. Described below.
+
 # %%
-dc = cells.obsm["X_diffmap"]
+# Drop the steady-state column so the new basis starts at DC1
+cells.obsm["X_dc"] = cells.obsm["X_diffmap_identity"][:, 1:]
+cells.obs["timepoint_num"] = cells.obs["timepoint_h"].astype(int)  # numeric -> colorbar
+
 fig, axes = panel_grid(3, ncols=3, size=(4.6, 4.0))
 
-for ax, (colour, title, kwargs) in zip(axes, [
-    (cells.obs.cell_state.cat.codes, "cell state", dict(cmap="Set2")),
-    (cells.obs.timepoint_h.astype(int), "timepoint", dict(cmap="viridis")),
-    (np.asarray(cells[:, "Oct4"].X).ravel(), "Oct4", dict(cmap="magma")),
-]):
-    s = ax.scatter(dc[:, 1], dc[:, 2], c=colour, s=3, alpha=0.6, **kwargs)
-    ax.set(title=title, xlabel="DC1", ylabel="DC2", xticks=[], yticks=[])
-    if title != "cell state":
-        fig.colorbar(s, ax=ax, shrink=0.75)
+# Here we define what we wanna plot -> (##variable##, ##graph title##, ##colors to be used##)
+panels = [
+    ("cell_state",    "cell state", dict(palette="Set2")),
+    ("timepoint_num", "timepoint",  dict(cmap="viridis")),
+    ("Oct4",          "Oct4",       dict(cmap="magma", use_raw=False)),
+]
+for ax, (key, title, kw) in zip(axes, panels):
+    sc.pl.embedding(cells, basis="dc", color=key, title=title,
+                    size=3, alpha=0.6, ax=ax, show=False, **kw)
+    ax.set(xlabel="DC1", ylabel="DC2")
 fig.tight_layout()
 
 # %%
+dc = cells.obsm["X_diffmap_identity"]
 oct4 = np.asarray(cells[:, "Oct4"].X).ravel()
 pd.DataFrame({
     "Spearman vs DC1": {
@@ -153,33 +208,30 @@ pd.DataFrame({
 }).round(3)
 
 # %% [markdown]
-# Do this for every axis you intend to interpret. DC1 tracks Oct4 strongly — it is a
-# pluripotency axis, which is what you would hope for from a graph built on lineage
-# markers. It is only weakly related to overall brightness, and barely related to time.
+# We cannot actually check loadings for DCs since, we just have an eigenvalue for every cell. Instead we can use correlations to show correlations between DCs and markers or metadata in our data. Here we show some correlations between DC1 and Spearman, you can see Oct 4 is highly correlated with DC1. Indicating changes in differentiation along DC1, as OCT4 is a marker of stem cells/pluripotency.
 #
 # :::{note}
-# **Read the magnitude; the sign is arbitrary.** An eigenvector multiplied by −1 is the
+# **Read the magnitude; the sign is irrelevant** An eigenvector multiplied by −1 is the
 # same eigenvector, so which end of DC1 comes out positive depends on the numerical
 # solver, not on the data — and it can flip between runs on the same input. The same is
 # true of PCA loadings.
-#
-# This matters more than it sounds, because it makes `argmax` along a component an unsafe
-# way to pick anything. Section 4 needs an extreme cell, and picks it by a marker instead.
 # :::
 
 # %% [markdown]
-# ## 3 · The graph decides what you get
+# ## 3 · Running diffusion maps on the 38 markers
 #
-# Nothing above was a property of "the diffusion map". Build the graph
+# Build the graph
 # [chapter 07](07_umap.ipynb) decided against — the PCA of all 38 markers — run exactly the
 # same call on it, and see what changes.
 
 # %%
-alt = cells.copy()
-sc.pp.pca(alt, n_comps=20, random_state=0)         # the road not taken, from chapter 06
-sc.pp.neighbors(alt, n_neighbors=15, n_pcs=15, random_state=0)
-sc.tl.diffmap(alt, n_comps=10)
-alt_dc = alt.obsm["X_diffmap"]
+sc.tl.diffmap(cells, n_comps=10, neighbors_key="fullintensity")
+
+# Same as before - save this new diffmap calculation in a new layer with trackable name
+cells.obsm["X_diffmap_fullintensity"] = cells.obsm.pop("X_diffmap")
+cells.uns["diffmap_fullintensity_evals"] = cells.uns.pop("diffmap_evals")
+
+alt_dc = cells.obsm["X_diffmap_fullintensity"]
 
 comparison = pd.DataFrame({
     "identity graph (8 markers)": {
@@ -187,8 +239,8 @@ comparison = pd.DataFrame({
         "PC1 — overall brightness": stats.spearmanr(dc[:, 1], cells.obsm["X_pca"][:, 0]).statistic,
     },
     "PCA graph (all 38 markers)": {
-        "Oct4": stats.spearmanr(alt_dc[:, 1], np.asarray(alt[:, "Oct4"].X).ravel()).statistic,
-        "PC1 — overall brightness": stats.spearmanr(alt_dc[:, 1], alt.obsm["X_pca"][:, 0]).statistic,
+        "Oct4": stats.spearmanr(alt_dc[:, 1], np.asarray(cells[:, "Oct4"].X).ravel()).statistic,
+        "PC1 — overall brightness": stats.spearmanr(alt_dc[:, 1], cells.obsm["X_pca"][:, 0]).statistic,
     },
 }).round(3)
 comparison.index.name = "|Spearman| of DC1 vs"
@@ -196,12 +248,12 @@ comparison.abs()
 
 # %%
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
-for ax, (coords, label) in zip(axes, [(dc, "identity graph"), (alt_dc, "PCA graph")]):
-    s = ax.scatter(coords[:, 1], coords[:, 2], c=np.asarray(cells[:, "Oct4"].X).ravel(),
-                   cmap="magma", s=3, alpha=0.6)
-    ax.set(title=f"{label} — coloured by Oct4", xlabel="DC1", ylabel="DC2",
-           xticks=[], yticks=[])
-    fig.colorbar(s, ax=ax, shrink=0.8)
+for ax, (basis, label) in zip(axes, [("diffmap_identity", "identity graph"),
+                                     ("X_diffmap_fullintensity", "full intensity graph")]):
+    sc.pl.embedding(cells, basis=basis, dimensions=(1, 2), color="Oct4",
+                    use_raw=False, cmap="magma", size=3, alpha=0.6,
+                    title=f"{label} — coloured by Oct4", ax=ax, show=False)
+    ax.set(xlabel="DC1", ylabel="DC2")
 fig.tight_layout()
 
 # %% [markdown]
@@ -211,21 +263,18 @@ fig.tight_layout()
 # [PC1](06_pca.ipynb) — how brightly the cell stained. Chapter 07 rejected that graph on a
 # batch-effect argument; here is the same choice arriving from the other direction.
 #
-# Neither is a mistake. A diffusion map has no opinion about what should matter; it
-# inherits that entirely from the graph you hand it. Which is why a methods section has to
-# say **what the graph was built on**, and why "we ran a diffusion map" is not a
-# description of anything.
+# This is why we also remove most markers, from the data and build on those we use to determine cell states. Then we use the others as projections to the data, to understand other effects
 # :::
 
 # %% [markdown]
-# ## 4 · Pseudotime, and the root cell that determines it
+# ## 4 · Pseudotime
 #
 # Diffusion pseudotime turns the axis into a number per cell: the diffusion distance from a
 # **root cell** you choose. Everything about the result follows from that choice, so make
 # it deliberately and write it down.
 #
 # The defensible root here is a cell as close to the starting state as the data allows:
-# **pluripotent, at the earliest timepoint, with the most Oct4**.
+# **epiblast, at the earliest timepoint, with the most Oct4**.
 #
 # Every one of those three conditions comes from knowing what was put in the wells. None
 # comes from the diffusion map — picking "the cell at the end of DC1" would be circular,
@@ -233,20 +282,45 @@ fig.tight_layout()
 # rerun.
 
 # %%
-candidates = np.where((cells.obs.cell_state.astype(str) == "Pluripotent")
+candidates = np.where((cells.obs.cell_state.astype(str) == "Epiblast")
                       & (cells.obs.timepoint_h.astype(int) == 36))[0]
 root = int(candidates[np.argmax(oct4[candidates])])
 cells.uns["iroot"] = root
 
-print(f"  {len(candidates)} candidate cells (pluripotent, 36 h)")
+print(f"  {len(candidates)} candidate cells (epiblast, 36 h)")
 print(f"  root: cell {root}, well {cells.obs.well.iloc[root]}, "
       f"Oct4 {oct4[root]:+.2f} SDs (max of the candidates)")
+
+
+# %% [markdown]
+# It is worth looking at where that cell actually sits. The pool it was chosen
+# from is every epiblast cell at 36 hours; the star is the one with the most Oct4.
+# If the star does not sit at the edge of the epiblast region, the ordering below
+# will start from the middle of the data and run outwards in both directions.
+
+# %%
+umap = cells.obsm["X_umap"]
+
+fig, ax = plt.subplots(figsize=(5.2, 4.4))
+ax.scatter(umap[:, 0], umap[:, 1], s=3, c="0.85", linewidth=0)
+ax.scatter(umap[candidates, 0], umap[candidates, 1], s=6, c="#4C72B0",
+           linewidth=0, label=f"candidates ({len(candidates):,})")
+ax.scatter(*umap[root], marker="*", s=420, c="black", edgecolor="white",
+           linewidth=1.2, zorder=5, label="root (uns['iroot'])")
+ax.set(xticks=[], yticks=[], title="Where the root sits")
+ax.legend(loc="best", markerscale=1.4)
+for side in ("top", "right", "bottom", "left"):
+    ax.spines[side].set_visible(False)
+fig.tight_layout()
 
 # %%
 sc.tl.dpt(cells, neighbors_key="identity")
 pseudotime = cells.obs.dpt_pseudotime.values
 print(f"  pseudotime: {np.isfinite(pseudotime).sum():,} of {len(pseudotime):,} cells finite, "
       f"range {pseudotime.min():.2f} to {pseudotime.max():.2f}")
+
+# %% [markdown]
+# ### Pseudotime on the PAGA-initialised UMAP
 
 # %%
 sc.pl.umap(cells, color=["dpt_pseudotime"])
@@ -264,12 +338,40 @@ sc.pl.umap(cells, color=["dpt_pseudotime"])
 # :::
 
 # %% [markdown]
+# ### Pseudotime on the diffusion map
+
+# %%
+import scanpy as sc
+
+# Drop the steady-state column so the new basis starts at DC1
+cells.obsm["X_dc"] = cells.obsm["X_diffmap_identity"][:, 1:]
+cells.obs["timepoint_num"] = cells.obs["timepoint_h"].astype(int)  # numeric -> colorbar
+
+fig, axes = panel_grid(3, ncols=3, size=(4.6, 4.0))
+panels = [
+    ("cell_state",    "cell state", dict(palette="Set2")),
+    ("timepoint_num", "timepoint",  dict(cmap="viridis")),
+    ("dpt_pseudotime",          "dpt_pseudotime",       dict(cmap="magma", use_raw=False)),
+]
+for ax, (key, title, kw) in zip(axes, panels):
+    sc.pl.embedding(cells, basis="dc", color=key, title=title,
+                    size=3, alpha=0.6, ax=ax, show=False, **kw)
+    ax.set(xlabel="DC1", ylabel="DC2")
+fig.tight_layout()
+
+# %% [markdown]
+# ### Pseudotime on the force-directed graph
+
+# %%
+sc.pl.draw_graph(cells, color=["leiden_0.1", "dpt_pseudotime","cell_state"], legend_loc="on data")
+
+# %% [markdown]
 # ## 5 · Check it before you believe it
 #
 # A pseudotime always produces numbers. Two checks that it produces *meaningful* ones, and
 # both use information the algorithm never saw.
 #
-# **Does it order the cell states the way the biology says?** Pluripotent cells should sit
+# **Does it order the cell states the way the biology says?** Epiblast cells should sit
 # near the root; differentiated ones further away.
 
 # %%
@@ -303,7 +405,7 @@ axes[1].set(xticks=range(1, len(hours) + 1), xticklabels=hours,
 fig.tight_layout()
 
 # %% [markdown]
-# The medians rise with real time, and the pluripotent cells sit lowest — so the ordering
+# The medians rise with real time, and the epiblast cells sit lowest — so the ordering
 # is not arbitrary. But the correlation with the clock is weak and the distributions
 # overlap almost completely, which says something worth saying out loud: **most of what
 # separates these cells is not time.** At any one timepoint the culture contains cells all
@@ -338,6 +440,15 @@ plate_oct4 = np.asarray(plate[:, "Oct4"].X).ravel()
 print(f"  controls   : {cells.n_obs:,} cells, 2 conditions")
 print(f"  whole plate: {plate.n_obs:,} sketched cells, {plate.obs.condition.nunique()} conditions")
 
+# %%
+plate
+
+# %%
+plate.obsm["X_dc"] = plate.obsm["X_diffmap"][:, 1:]
+sc.pl.embedding(plate, basis="dc", color="GATA4", title="GATA 4",
+                    size=3, alpha=0.6,show=True)
+
+
 # %% [markdown]
 # ### Does DC1 still mean the same thing?
 #
@@ -360,45 +471,6 @@ pd.DataFrame({
 # the data as when they are not — so a pluripotency coordinate learned on the controls is a
 # pluripotency coordinate everywhere, and Part 4 can measure perturbations *against* it.
 #
-# That is the general shape of what this stage has been doing. A method learned somewhere
-# with no treatments is only worth anything if it transfers, and "does it transfer?" is a
-# question with a number attached, not a matter of hoping.
-
-# %% [markdown]
-#
-# %% [markdown]
-# ### One last check: the negative result, properly powered
-#
-# [Chapter 07](07_umap.ipynb) found the two controls interleaved in the embedding. Ask the
-# same question of the pseudotime — and then ask whether the test could have answered it.
-
-# %%
-per_well = pd.DataFrame({
-    "pseudotime": cells.obs.dpt_pseudotime.values,
-    "condition": cells.obs.condition.astype(str).values,
-    "well": cells.obs.well.astype(str).values,
-}).groupby(["condition", "well"]).pseudotime.mean().reset_index()
-
-pbs = per_well.loc[per_well.condition == "PBS", "pseudotime"]
-dmso = per_well.loc[per_well.condition == "DMSO", "pseudotime"]
-print(f"  PBS  {pbs.mean():.3f} over {len(pbs)} wells")
-print(f"  DMSO {dmso.mean():.3f} over {len(dmso)} wells")
-print(f"  p       = {stats.mannwhitneyu(pbs, dmso).pvalue:.3f}")
-print(f"  p_floor = {2 / comb(len(pbs) + len(dmso), len(pbs)):.2e}")
-
-# %% [markdown]
-# :::{important}
-# **This is what a trustworthy negative result looks like.** The floor is $9\times10^{-9}$,
-# so the design had room to return a p-value eight orders of magnitude smaller than the
-# conventional threshold — and it returned a number nowhere near it.
-#
-# Compare that with a per-timepoint comparison of three wells against five, where the floor
-# is 0.0357 and "not significant" can only ever mean "this experiment could not have told
-# you". Both report a null; only one of them is evidence of absence.
-#
-# **Always print the floor next to a negative result.** It is the difference between "we
-# looked and there was nothing" and "we did not look hard enough to know".
-# :::
 
 # %% [markdown]
 # ## 7 · Save
@@ -420,18 +492,7 @@ print(f"  uns  : iroot = {cells.uns['iroot']}")
 # | [08](08_cell_type_annotation.ipynb) | clusters, names, and the labels carried back to every cell |
 # | [09](10_diffusion_map.ipynb) | a continuous axis, the root that defines it, and a null result you can trust |
 #
-# Two of those chapters ran the pipeline on **DMSO and PBS alone**, and between them they
-# settled three things no amount of reasoning could have:
-#
-# | | |
-# |---|---|
-# | the embedding does not invent a difference | condition purity 1.1× chance |
-# | there is no plate-position effect | row purity 1.0× chance, once same-well pairs are excluded |
-# | the differentiation axis is not made by the drugs | DC1 tracks Oct4 at 0.81 with or without them |
-#
-# And one thing that changes how you analyse everything else: **cells from the same well
-# neighbour each other 2.2× more often than chance**, in untreated wells, within a single
-# timepoint. That is why every test counts wells.
+# These chapters ran the pipeline on **DMSO and PBS alone**.
 #
 # You now have every technique the analysis needs, and you have applied none of them to a
 # question. That is next: [Your turn](../11_your_turn.ipynb).
@@ -463,7 +524,7 @@ print(f"  uns  : iroot = {cells.uns['iroot']}")
 # The ordering reverses, and the output is exactly as smooth and as convincing as before.
 # Nothing in the pseudotime itself flags it.
 #
-# The only defence is external: pluripotent cells at 36 hours are the starting state
+# The only defence is external: epiblast cells at 36 hours are the starting state
 # because of what was put in the wells, not because of anything in the matrix. State the
 # root and the reason for it in your methods, every time.
 # :::
@@ -489,31 +550,6 @@ print(f"  uns  : iroot = {cells.uns['iroot']}")
 # correlations are all the same lineage, DC2 is a second differentiation axis; if they are
 # a mixture with no theme, it is structure the graph found and you cannot name — which is
 # a reason not to build an argument on it.
-# :::
-
-# %% [markdown]
-# ### 3. A diffusion map of a discrete dataset
-#
-# Diffusion maps assume continuity. Build one on a dataset that is genuinely discrete —
-# take only the pluripotent and hypoblast cells, dropping the intermediates — and look at
-# the spectrum. Does the gap you could not find above appear?
-
-# %% [markdown]
-# :::{admonition} Solution
-# :class: dropdown
-#
-# ```python
-# ends = cells[cells.obs.cell_state.isin(["Pluripotent", "Hypoblast"])].copy()
-# sc.pp.neighbors(ends, n_neighbors=15, use_rep="X_identity", random_state=0)
-# sc.tl.diffmap(ends, n_comps=10)
-# print(np.round(ends.uns["diffmap_evals"], 4))
-# ```
-#
-# Removing the middle of a continuum manufactures a gap, and the spectrum duly reports one.
-# That is the honest reading of this exercise: a spectral gap tells you the graph has
-# separated components, and a graph can be separated because the biology is, or because you
-# filtered it that way. The algorithm cannot tell the two apart, and neither can a reader
-# who is not told what was excluded.
 # :::
 
 # %% [markdown]
