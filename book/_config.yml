@@ -11,14 +11,11 @@ execute:
   # nothing is re-executed here.
   execute_notebooks: off
 
-repository:
-  url: https://github.com/LiberaliLab/Multicellular-Systems-2026
-  path_to_book: book
-  branch: main
-
+# No `repository:` block, and every button that would lead to one is off: students
+# read the site and type the code, and nothing on a page points at the source repo.
 html:
-  use_issues_button: true
-  use_repository_button: true
+  use_issues_button: false
+  use_repository_button: false
   use_edit_page_button: false
   home_page_in_navbar: false
   baseurl: https://liberalilab.github.io/Multicellular-Systems-2026/
@@ -43,9 +40,12 @@ sphinx:
     suppress_warnings:
       - ref.doc
       - myst.xref_missing
-    # Long feature tables are wide; let them scroll rather than overflow.
+    # No per-page download of the notebook, and no copy of the sources published
+    # under _sources/ either -- switching the button off alone would leave every
+    # .ipynb one guessed URL away.
+    html_copy_source: false
+    html_show_sourcelink: false
     html_theme_options:
-      repository_provider: github
-      use_download_button: true
+      use_download_button: false
   extra_extensions:
     - sphinx_togglebutton   # collapsible exercise solutions

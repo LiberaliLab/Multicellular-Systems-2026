@@ -33,7 +33,6 @@
 # [HCS exploration tutorial](https://biovisioncenter.github.io/ngio/stable/tutorials/hcs_exploration/).
 
 # %%
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -42,13 +41,8 @@ import pandas as pd
 
 from ngio import open_ome_zarr_plate, open_ome_zarr_well
 
-sys.path.insert(0, str(Path.cwd().parents[2] / "src"))
-from mcs2026 import plotting
-
 # The plate lives here on Euler. Change this line if your copy is elsewhere.
 PLATE_PATH = Path("/cluster/project/mcsliberali/zarr_files/dummy.zarr")
-
-plotting.set_style()
 
 # %% [markdown]
 # ## Opening a plate
@@ -149,14 +143,21 @@ plate.list_image_tables(mode="all")
 # ## The one call that matters
 #
 # `concatenate_image_tables` reads the named table from every image in the plate, stacks
-# them, and adds the well and image path to each row so you can tell them apart.
+# them, and adds three columns — `row`, `column` and `path_in_well` — so you can tell which
+# image each row came from.
 
 # %%
-common_tables = plate.list_image_tables(mode="common")
-table_name = common_tables[0]
+feature_tables = plate.list_image_tables(mode="common", filter_types="feature_table")
+print("feature tables in every image:", feature_tables)
+
+# Take a feature table if the plate has one -- one row per segmented object.
+# Otherwise fall back to the first table every image shares.
+table_name = (feature_tables or plate.list_image_tables(mode="common"))[0]
 print("concatenating:", table_name)
 
-table = plate.concatenate_image_tables(name=table_name, max_workers="auto")
+# index_key gives every row a plate-wide name, built from row, column, image and label.
+# Without it, rows that share a name in different wells overwrite each other.
+table = plate.concatenate_image_tables(name=table_name, index_key="object", max_workers="auto")
 frame = table.dataframe
 print(f"{len(frame):,} rows x {frame.shape[1]} columns, from {len(image_paths)} images")
 frame.head()
@@ -181,11 +182,9 @@ frame.head()
 # ### How many objects per well?
 
 # %%
-well_column = next((c for c in frame.columns if "well" in c.lower() or "path" in c.lower()), None)
-if well_column is not None:
-    counts = frame.groupby(well_column).size().rename("objects")
-    print(counts.describe()[["count", "mean", "min", "max"]].round(1).to_string())
-    counts.head()
+counts = frame.groupby(["row", "column"]).size().rename("objects")
+print(counts.describe()[["count", "mean", "min", "max"]].round(1).to_string())
+counts.head()
 
 # %% [markdown]
 # ---
@@ -207,8 +206,22 @@ if well_column is not None:
 #      for p in plate.wells_paths()]
 # )
 # print(f"{len(present)} of 384 wells used")
-# plotting.plate_map(present, "present", title="Wells present", cmap="viridis")
+#
+# # a 384-well plate is 16 rows by 24 columns; wells the plate does not have stay empty
+# rows, columns = list("ABCDEFGHIJKLMNOP"), list(range(1, 25))
+# grid = (present.pivot(index="row", columns="column", values="present")
+#         .reindex(index=rows, columns=columns))
+#
+# fig, ax = plt.subplots(figsize=(9, 5))
+# ax.imshow(grid.to_numpy(dtype=float), cmap="viridis")
+# ax.set_xticks(range(24), columns)
+# ax.set_yticks(range(16), rows)
+# ax.set_title("Wells present")
+# plt.show()
 # ```
+#
+# A plate map is a pivot: rows down, columns across, one cell per well. `reindex` is what
+# puts the missing wells back as empty cells, so the plate keeps its real shape.
 #
 # Empty border rows and columns are normal: edge wells evaporate faster, so they are
 # often left out deliberately. Compare this map with the one in
@@ -250,11 +263,24 @@ if well_column is not None:
 # :class: dropdown
 #
 # ```python
-# numeric = frame.select_dtypes("number").columns[0]
-# summary = frame.groupby(well_column)[numeric].mean().reset_index()
-# summary["row"] = summary[well_column].str.split("/").str[0]
-# summary["column"] = summary[well_column].str.split("/").str[1].astype(int)
-# plotting.plate_map(summary, numeric, cmap="magma", title=f"mean {numeric}")
+# measures = [c for c in frame.select_dtypes("number").columns if c != "label"]
+# print(measures[:10])
+# numeric = measures[0]                      # or any other name in that list
+#
+# summary = frame.groupby(["row", "column"])[numeric].mean().reset_index()
+# summary["column"] = summary["column"].astype(int)
+#
+# rows, columns = list("ABCDEFGHIJKLMNOP"), list(range(1, 25))
+# grid = (summary.pivot(index="row", columns="column", values=numeric)
+#         .reindex(index=rows, columns=columns))
+#
+# fig, ax = plt.subplots(figsize=(9, 5))
+# image = ax.imshow(grid.to_numpy(dtype=float), cmap="magma")
+# ax.set_xticks(range(24), columns)
+# ax.set_yticks(range(16), rows)
+# ax.set_title(f"mean {numeric}")
+# fig.colorbar(image, ax=ax, shrink=0.7, label=numeric)
+# plt.show()
 # ```
 #
 # Look for gradients rather than scatter. A smooth trend across the plate is usually
