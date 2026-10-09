@@ -1,25 +1,28 @@
 # Course schedule
 
 Thirteen Friday sessions, 25 September to 18 December. Each one is a 2-hour lecture plus
-about **one hour of analysis** — that hour is support time with the TAs, not new teaching,
-so work through the notebooks before it and bring what did not run.
+about **one hour of hands-on** — support time with the TAs, not new teaching.
+
+The hands-on track has three phases. In class until 23 October: setup, Part 1, and a first
+look at Parts 2 and 3. Then two weeks to finish reading all three parts on your own. Then
+group projects, where the hour is for your questions on Part 3.
 
 Bring a laptop. Parts 1 and 3 run on Euler through your browser; the optional napari part
 runs locally.
 
-| Date | Session | The analysis hour | Notebooks |
+| Date | Session | Hands-on | Notebooks |
 |---|---|---|---|
-| **25.09** · W1 | Introduction to Multicellular Systems | Euler entry doc handed out — **start your account today** | [Setup](setup/index.md) |
-| **02.10** · W2 | Technologies for Multicellular Systems | 1h — JupyterHub and Euler setup; we make sure everyone can reach the data | Setup · all three pages |
-| **09.10** · W3 | FMI/BSS visit + light sheet (day 1) | Explanation of the data, and finishing setup | Part 1 · concept, `ez-zarr` |
-| **16.10** · W4 | FMI/BSS visit + hands-on (day 2) | Explanation of the data, and finishing setup | Part 1 · `ngio`, cheatsheet |
-| **23.10** · W5 | Wrap-up: from data to biology; signalling | 1h — feature extraction and normalisation | Part 2 (no code) · Part 3 · 00–04 |
-| **30.10** · W6 | Journal Club #1 | — | — |
-| **06.11** · W7 | Image Analysis at Scale | — | — |
-| **13.11** · W8 | Mechanics and ECM | 1h with TAs — by now you should have worked through 05–07 | Part 3 · 05–07 |
-| **20.11** · W9 | Metabolism & Lipids | 1h with TAs — by now, 08–10 | Part 3 · 08–10 |
-| **27.11** · W10 | Compounds & Genetic Screens | 1h with TAs — your own theme running end to end | Part 3 · 11, [Projects](projects.md) |
-| **04.12** · W11 | Drug Discovery & Disease | 1h — presentation prep, final push | [Projects](projects.md) |
+| **25.09** · W1 | Introduction to Multicellular Systems | Setup | [Setup](setup/index.md) |
+| **02.10** · W2 | Technologies for Multicellular Systems | Setup | [Setup](setup/index.md) |
+| **09.10** · W3 | FMI/BSS visit + light sheet (day 1) | Part 1 — `ngio` and `ez-zarr` | [Part 1](part1_omezarr/intro.md) |
+| **16.10** · W4 | FMI/BSS visit + hands-on (day 2) | Part 1 — `ngio` and `ez-zarr` | [Part 1](part1_omezarr/intro.md) |
+| **23.10** · W5 | Wrap-up: from data to biology; signalling | Feature extraction and normalisation | [Part 2](part2_features/intro.md) · [Part 3](part3_analysis/intro.md) |
+| **30.10** · W6 | Journal Club #1 | Finish reading Parts 1, 2 and 3 | Parts 1–3 |
+| **06.11** · W7 | Image Analysis at Scale | Finish reading Parts 1, 2 and 3 | Parts 1–3 |
+| **13.11** · W8 | Mechanics and ECM | Group projects — bring your questions on Part 3 | [11 · Your turn](part3_analysis/11_your_turn.ipynb) · [Projects](projects.md) |
+| **20.11** · W9 | Metabolism & Lipids | Group projects — bring your questions on Part 3 | [11 · Your turn](part3_analysis/11_your_turn.ipynb) · [Projects](projects.md) |
+| **27.11** · W10 | Compounds & Genetic Screens | Group projects — bring your questions on Part 3 | [11 · Your turn](part3_analysis/11_your_turn.ipynb) · [Projects](projects.md) |
+| **04.12** · W11 | Drug Discovery & Disease | Group projects — bring your questions on Part 3 | [11 · Your turn](part3_analysis/11_your_turn.ipynb) · [Projects](projects.md) |
 | **11.12** · W12 | Student presentations | 3h — ten minutes per group | — |
 | **18.12** · W13 | Written exam | — | — |
 

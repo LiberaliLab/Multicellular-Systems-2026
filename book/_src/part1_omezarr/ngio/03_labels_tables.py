@@ -74,13 +74,17 @@ for table_type in ["roi_table", "masking_roi_table", "feature_table"]:
 # %% [markdown]
 # ## ROI tables
 #
-# The `FOV_ROI_table` records the microscope's fields of view — where each acquired tile
-# sits within the well.
+# A Fractal plate carries a `FOV_ROI_table`, which records the microscope's fields of view —
+# where each acquired tile sits within the well. Take it if this plate has one, and the
+# first ROI table it lists if it does not.
 
 # %%
-roi_table = container.get_roi_table("FOV_ROI_table")
+roi_names = container.list_tables(filter_types="roi_table")
+roi_name = "FOV_ROI_table" if "FOV_ROI_table" in roi_names else roi_names[0]
+
+roi_table = container.get_roi_table(roi_name)
 rois = roi_table.rois()
-print(f"{len(rois)} ROIs")
+print(f"{roi_name}: {len(rois)} ROIs")
 rois[0]
 
 # %% [markdown]
@@ -102,8 +106,9 @@ ax.set_title(roi.get_name()); ax.axis("off")
 # ## Masking ROI tables
 #
 # A masking ROI table is indexed by **label id**, so it answers "where is object 42?"
-# directly. This is the thing that made the last exercise of
-# [chapter 2](../ezzarr/02_ezzarr_quicklook.ipynb) awkward.
+# directly. In the last exercise of [chapter 2](../ezzarr/02_ezzarr_quicklook.ipynb)
+# `ez-zarr` could *draw* one object; here you get it as data — its pixels and its mask,
+# ready to measure.
 
 # %%
 masking_names = container.list_tables(filter_types="masking_roi_table")
@@ -181,9 +186,19 @@ print("anndata:", type(feature_table.anndata).__name__, feature_table.anndata.sh
 # %% [markdown]
 # ### Joining features to positions
 #
-# Both tables are indexed by label id, so they join directly.
+# Both tables are indexed by label id, so they join directly — **as long as they describe
+# the same segmentation**. A plate often carries more than one, and object 7 of one is not
+# object 7 of another. Every table records which segmentation it belongs to in
+# `reference_label`, so check that before you join.
 
 # %%
+# Take the masking table -- and the label image -- that belong to the segmentation these
+# features were measured on. It is not necessarily the one used above.
+masking_table = next(table for table in map(container.get_masking_roi_table, masking_names)
+                     if table.reference_label == feature_table.reference_label)
+label = container.get_label(masking_table.reference_label)
+print("joining on segmentation:", masking_table.reference_label)
+
 features = feature_table.dataframe
 positions = pd.DataFrame([
     {"label": r.label,
@@ -240,7 +255,7 @@ plane = small.get_as_numpy(channel_selection=container.channel_labels[0], axes_o
 
 smoothed = ndimage.gaussian_filter(plane.astype(float), sigma=2)
 binary = smoothed > threshold_otsu(smoothed)
-binary = remove_small_objects(binary, min_size=50)      # min_size, not max_size
+binary = remove_small_objects(binary, max_size=50)      # drop specks of 50 pixels or fewer
 segmentation, n_objects = ndimage.label(binary)
 print(f"{n_objects} objects")
 

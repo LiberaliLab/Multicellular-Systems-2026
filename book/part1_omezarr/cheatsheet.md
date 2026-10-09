@@ -22,7 +22,9 @@ image.plot(
     scalebar_micrometer=150, scalebar_color="yellow", scalebar_label=True,
 )
 
-image.get_table(table_name="nuclei_ROI_table")   # ROI tables only
+image.get_label_names()                          # the segmentations this plate has
+image.get_table_names()                          # ...and its tables: read these first
+image.get_table(table_name="nuclei_ROI_table")   # ROI tables only; None if the name is wrong
 ```
 
 ## ngio — for working
@@ -118,7 +120,7 @@ roi.zoom(1.5)                    # pad it by 50%
 | `import_plate` needs a **`str`**, not a `Path` | `ome_zarr.import_plate(str(p))` |
 | An OME-Zarr is a **directory** | copy with `rsync -a` or `scp -r`, never a plain `cp file` |
 | `Roi` objects are **frozen** in ngio 1.1.0 | build a new one, do not mutate |
-| ez-zarr cannot read feature tables | use `ngio.get_feature_table` |
+| ez-zarr cannot read feature tables | use `container.get_feature_table(name)` |
 
 ## Moving from older ngio
 

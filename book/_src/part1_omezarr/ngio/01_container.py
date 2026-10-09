@@ -120,7 +120,7 @@ print(f"asked for 2.0 um/px, got {matched.pixel_size.x:.3f} um/px at level {matc
 print("axes:", image.axes, " shape:", image.shape, " dtype:", image.dtype)
 
 # %%
-small = container.get_image(path="3")
+small = matched                                  # the level nearest 2 um/px, from above
 data = small.get_as_numpy(channel_selection=container.channel_labels[0], axes_order=["y", "x"])
 print("numpy:", data.shape, data.dtype, f"{data.nbytes / 1e6:.1f} MB")
 
@@ -281,8 +281,6 @@ ax.axis("off")
 # :class: dropdown
 #
 # ```python
-# from scipy import ndimage
-#
 # ids = np.unique(mask); ids = ids[ids > 0]
 # target_id = ids[len(ids) // 2]
 # ys, xs = np.where(mask == target_id)

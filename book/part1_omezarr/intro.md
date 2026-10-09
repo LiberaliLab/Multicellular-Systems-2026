@@ -22,7 +22,7 @@ What the format is, before any library hides it.
 
 | | |
 |---|---|
-| [1](concept/01_what_is_omezarr.md) | What OME-Zarr actually is — on disk. **Read only, nothing to run** |
+| [1](concept/01_what_is_omezarr.md) | What OME-Zarr actually is — on disk. **Reading only — you do not have to run it** |
 
 ### [Looking with ez-zarr](ezzarr/intro.md)
 
