@@ -9,8 +9,9 @@ In this chapter you will:
 - find where labels and tables live
 
 :::{important}
-**Nothing on this page runs, and nothing on it is meant to.** The code is here so you can
-see *how* each thing is read, not so you can execute it — every snippet is an illustration.
+**You do not have to run anything on this page.** Being able to run this section is not
+part of the course. The code is here so you can see *how* each thing is read — treat every
+snippet as an illustration.
 
 The chapters after this one are where you open the data yourself.
 :::
