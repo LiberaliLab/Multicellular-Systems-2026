@@ -310,9 +310,9 @@ for theme, markers_ in panels.PANELS.items():
 # %% [markdown]
 # ## Step 4 · Save the tidy metadata tables
 #
-# Finally, save what we parsed. These CSVs are committed to the repository, so the layout
-# is readable without opening Excel — and so that if the workbook ever changes, the diff
-# shows exactly what changed.
+# Finally, save what we parsed. These CSVs are kept next to the workbook, so the layout is
+# readable without opening Excel — and if the workbook ever changes, comparing them shows
+# exactly what changed.
 
 # %%
 written = layout.write_metadata(XLSX, XLSX.parent)

@@ -43,7 +43,7 @@ or is small enough not to matter.
 | `$SCRATCH` | large temporary files | **deleted after 15 days**, not backed up |
 | the course data directory | the plate and feature table | read-only, given to you |
 
-Put the repository and your virtual environment in `$HOME`. Do not copy the dataset
+Put your notebooks and your virtual environment in `$HOME`. Do not copy the dataset
 anywhere — you read it where it is.
 
 ## 3. Start a notebook server

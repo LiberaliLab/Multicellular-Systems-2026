@@ -178,15 +178,22 @@ imageA.plot(
 # %% [markdown]
 # ### 3. Segmentations and tables
 #
-# The repr listed the segmentations and tables that live alongside the image. Tables are
-# read by name.
+# The repr listed the segmentations and tables that live alongside the image. Ask for the
+# names as lists, because a table is read **by name** — and the names differ from plate to
+# plate.
 
 # %%
-imageA
+labels = imageA.get_label_names()
+tables = imageA.get_table_names()
+print("segmentations:", labels)
+print("tables:       ", tables)
 
 # %%
-table_name = f"{imageA.get_segmentation_names()[0]}_masking_ROI_table" \
-    if hasattr(imageA, "get_segmentation_names") else "nuclei_ROI_table"
+# A table named after a segmentation holds one row per object. If this plate has
+# none, fall back to the first table it lists.
+table_name = next((t for t in tables
+                   if any(name in t for name in labels) and ("ROI" in t or "masking" in t)),
+                  tables[0])
 print("reading table:", table_name)
 
 # %%
@@ -223,7 +230,8 @@ df
 # :class: dropdown
 #
 # ```python
-# print(imageA.channel_labels if hasattr(imageA, "channel_labels") else imageA)
+# for index, channel in enumerate(imageA.get_channels()):
+#     print(index, channel["label"])
 #
 # imageA.plot(
 #     pyramid_level=1,
@@ -236,7 +244,7 @@ df
 # )
 # ```
 #
-# The repr printed the channel names in order, so the first name is index 0. Getting the
+# `get_channels()` lists them in order, so the first one is index 0. Getting the
 # ranges right matters more than the colours: too wide and everything looks black, too
 # narrow and everything saturates.
 # :::
@@ -255,9 +263,12 @@ df
 # import time
 # for level in [0, 2]:
 #     start = time.time()
-#     a = imageA.get_array_by_coordinate(pyramid_level=level)
+#     a = imageA.get_array_by_coordinate(pyramid_level=level, as_NumPy=True)
 #     print(f"level {level}: shape {a.shape}, {time.time() - start:.2f} s")
 # ```
+#
+# `as_NumPy=True` is what makes this a fair test: without it ez-zarr hands back a lazy
+# array, nothing has been read yet, and both timings come out as zero.
 #
 # Level 2 is a quarter the width and a quarter the height, so a sixteenth of the pixels
 # and roughly a sixteenth of the read. On a screen that is a few hundred pixels wide,
@@ -268,37 +279,61 @@ df
 # ### 3. Segmentation masks on top of the image
 #
 # Overlay a segmentation on the image, and then plot only the region covered by a single
-# mask. Use the masking ROI table you loaded above to find where one object is.
+# mask.
 #
-# *(This is genuinely fiddly with ez-zarr alone — see how far you get, then look at how
-# [chapter 3.3](../ngio/03_labels_tables.ipynb) does it with `ngio`.)*
+# *(Read the arguments of `imageA.plot` before you reach for the array. Then look at how
+# [chapter 3.3](../ngio/03_labels_tables.ipynb) gets the same object as data, with `ngio`.)*
 
 # %% [markdown]
 # :::{admonition} Solution
 # :class: dropdown
 #
 # ```python
-# # the table gives you position and size in micrometres
-# row = df.iloc[0]
-# print(row)
+# print(imageA.get_label_names())
+# label = imageA.get_label_names()[0]        # or any other name in that list
 #
-# # convert micrometres to pixels using the voxel spacing from the repr
-# scale = imageA.get_scale(pyramid_level=0)      # [z, y, x] in micrometres
-# y0 = int(row["y_micrometer"] / scale[1])
-# x0 = int(row["x_micrometer"] / scale[2])
-# dy = int(row["len_y_micrometer"] / scale[1])
-# dx = int(row["len_x_micrometer"] / scale[2])
+# # 1. the segmentation, drawn semi-transparently over the image
+# imageA.plot(
+#     label_name=label,
+#     pyramid_level=1,
+#     channels=[1],
+#     channel_colors=["white"],
+#     channel_ranges=[[100, 1000]],
+#     scalebar_micrometer=150,
+# )
 #
-# crop = arr[2, 0, y0:y0 + dy, x0:x0 + dx]
-# plt.imshow(crop, cmap="gray"); plt.title(f"object {df.index[0]}"); plt.show()
+# # 2. one object: read the label image, take one of its ids, let plot() crop to it
+# lab = imageA.get_array_by_coordinate(label_name=label, as_NumPy=True)
+# ids = numpy.unique(lab[lab > 0])
+# value = int(ids[len(ids) // 2])            # one from the middle of the list
+# print(f"{len(ids)} objects, plotting label value {value}")
+#
+# imageA.plot(
+#     label_name=label,
+#     label_value=value,
+#     extend_pixels=20,
+#     pyramid_level=0,
+#     channels=[1],
+#     channel_colors=["white"],
+#     channel_ranges=[[100, 1000]],
+# )
 # ```
 #
-# It works, but notice what you had to do: read the whole array, look up the physical
-# coordinates, divide by the voxel size yourself, and hope you got the axis order right.
+# Neither step touches a pixel coordinate. `label_name` overlays the mask; `label_value`
+# finds that object's bounding box and crops to it; `extend_pixels` leaves a margin around
+# it.
 #
-# In chapter 3.3, `ngio` does this in one line — `image.get_roi_as_numpy(roi)` — because
-# the ROI carries its own units and the image knows its own pixel size. That is the
-# difference between the two libraries in a nutshell.
+# Doing the crop by hand is where it gets fiddly. A table gives positions in micrometres,
+# the array is indexed in pixels, the pixel size is different at every pyramid level — and
+# `get_array_by_coordinate()` gives you the *lowest* resolution unless you ask for another,
+# while `get_scale()` returns the channel axis too unless you pass
+# `spatial_axes_only=True`. Get any one of those wrong and you have a crop of the wrong
+# place, with no error to tell you.
+#
+# What ez-zarr gives you here is a *picture*. [Chapter 3.3](../ngio/03_labels_tables.ipynb)
+# gets the same object as data — `image.get_roi_as_numpy(roi)` returns the pixels for one
+# row of a table, ready to measure. That is the difference between the two libraries in a
+# nutshell.
 # :::
 
 # %% [markdown]

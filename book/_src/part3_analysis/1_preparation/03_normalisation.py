@@ -307,9 +307,8 @@ print(f"  {normalised_intensities.shape[0]:,} cells x {normalised_intensities.sh
 print(f"  origin: {', '.join(analysis.CONTROLS)} cells at {min(full_adata.obs.timepoint_h.astype(int))} h")
 
 # %% [markdown]
-# The code behind `normalise_cells` lives in
-# [`src/mcs2026/analysis.py`](https://github.com/LiberaliLab/Multicellular-Systems-2026/blob/main/src/mcs2026/analysis.py)
-# if you want to read what it actually does.
+# `normalise_cells` applies exactly the recipe above and nothing else: `log2`, then the control
+# origin at the first timepoint subtracted, then the control standard deviation as the unit.
 
 # %% [markdown]
 # ### Watch it work, on three markers that should move

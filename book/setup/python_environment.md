@@ -2,7 +2,7 @@
 
 One virtual environment, one Jupyter kernel, used by Part 1 and Part 3.
 
-Do this **once**, in a terminal on JupyetHub Euler ([how to get there](euler_jupyterhub.md)).
+Do this **once**, in a terminal on JupyterHub Euler ([how to get there](euler_jupyterhub.md)).
 
 ## 1. Load the software stack
 
@@ -87,12 +87,4 @@ step 3. Nothing of yours lives inside it:
 
 ```bash
 rm -rf $HOME/venvs/mcs2026
-```
-
-## Extra Info - if you wanna get the course repo
-
-```bash
-cd $HOME
-git clone https://github.com/LiberaliLab/Multicellular-Systems-2026.git
-cd Multicellular-Systems-2026
 ```
